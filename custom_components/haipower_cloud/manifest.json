@@ -1,0 +1,12 @@
+{
+  "domain": "haipower_cloud",
+  "name": "HaiPower Cloud",
+  "codeowners": ["@usera0519"],
+  "config_flow": true,
+  "documentation": "https://github.com/usera0519/ha-haipower-cloud",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/usera0519/ha-haipower-cloud/issues",
+  "requirements": ["requests>=2.28.0"],
+  "version": "v0.1"
+}

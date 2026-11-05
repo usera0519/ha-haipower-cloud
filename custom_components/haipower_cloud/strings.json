@@ -1,0 +1,42 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HaiPower Cloud - Account Login",
+        "description": "Enter your login credentials for the HaiPower platform (eu.aohaidigitalpower.com). The captcha verification code is resolved automatically without manual input.",
+        "data": {
+          "username": "Email / Username",
+          "password": "Password"
+        }
+      },
+      "device": {
+        "title": "HaiPower Cloud - Select Inverter & Configure",
+        "description": "Found inverters associated with your account. Select your inverter and assign a custom name:",
+        "data": {
+          "dsn": "Select Inverter",
+          "device_name": "Custom Device Name (e.g. Sandisolar Inverter)",
+          "scan_interval": "Data polling interval in seconds (default: 30s)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid username or password for eu.aohaidigitalpower.com.",
+      "cannot_connect": "Could not connect to eu.aohaidigitalpower.com cloud servers.",
+      "no_devices_found": "No solar inverters found associated with this account.",
+      "unknown": "Unexpected error occurred during authentication."
+    },
+    "abort": {
+      "already_configured": "This inverter is already configured in Home Assistant."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HaiPower Cloud Inverter Options",
+        "data": {
+          "scan_interval": "Data polling interval in seconds (10 - 300)"
+        }
+      }
+    }
+  }
+}
