@@ -7,6 +7,7 @@
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/usera0519/ha-haipower-cloud/issues",
-  "requirements": ["requests>=2.28.0"],
+  "categories": ["energy.solar_batteries"],
+  "requirements": [],
   "version": "v0.1"
 }
