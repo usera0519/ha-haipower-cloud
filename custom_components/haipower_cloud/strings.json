@@ -33,12 +33,24 @@
   "options": {
     "step": {
       "init": {
-        "title": "HaiPower Cloud Inverter Options",
-        "description": "Configure entity mode, cloud scan interval and inspect recent cloud events.\n\n**Recent Cloud Logs:**\n{recent_logs}",
+        "title": "HaiPower Cloud Options",
+        "description": "Select an action:",
+        "menu_options": {
+          "settings": "Integration Settings (Mode & Interval)",
+          "logs": "View Cloud Diagnostic Logs"
+        }
+      },
+      "settings": {
+        "title": "Inverter Configuration",
+        "description": "Configure the entity exposure mode and cloud data refresh interval:",
         "data": {
           "entity_mode": "Entity Mode",
           "scan_interval": "Cloud polling interval in seconds (10 - 300)"
         }
+      },
+      "logs": {
+        "title": "Cloud Diagnostic Logs",
+        "description": "Recent cloud communication events and inverter diagnostics:\n\n{logs}"
       }
     }
   }

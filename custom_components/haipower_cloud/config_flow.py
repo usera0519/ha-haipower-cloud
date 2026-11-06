@@ -110,8 +110,8 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
 
         mode_options = {
-            ENTITY_MODE_FULL: "Pełny (Wszystkie czujniki, baterie BMS, kalkulacje ETA/AVG i sterowanie)",
-            ENTITY_MODE_BASIC: "Podstawowy (Tylko dane do Energy Dashboard, moce, napięcia, status, błędy - bez sterowania)",
+            ENTITY_MODE_FULL: "Full (All sensors, battery BMS, ETA/AVG analytics, and all controls)",
+            ENTITY_MODE_BASIC: "Basic (Essential sensors, Energy Dashboard, and Inverter On/Off switch)",
         }
 
         default_dsn = self._devices[0].get("dsn") if self._devices else ""
@@ -140,27 +140,30 @@ class AohaiOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options for HaiPower Cloud integration."""
 
     async def async_step_init(self, user_input=None):
-        """Manage the options."""
+        """Show options menu allowing selection between settings and cloud diagnostic logs."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["settings", "logs"],
+        )
+
+    async def async_step_settings(self, user_input=None):
+        """Manage integration settings (Entity Mode and Polling Interval)."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
         current_interval = self.config_entry.options.get(
             CONF_SCAN_INTERVAL,
-            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
         )
         current_mode = self.config_entry.options.get(
             CONF_ENTITY_MODE,
-            self.config_entry.data.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL)
+            self.config_entry.data.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL),
         )
 
         mode_options = {
-            ENTITY_MODE_FULL: "Pełny (Wszystkie czujniki, baterie BMS, kalkulacje ETA/AVG i sterowanie)",
-            ENTITY_MODE_BASIC: "Podstawowy (Tylko dane do Energy Dashboard, moce, napięcia, status, błędy - bez sterowania)",
+            ENTITY_MODE_FULL: "Full (All sensors, battery BMS, ETA/AVG analytics, and all controls)",
+            ENTITY_MODE_BASIC: "Basic (Essential sensors, Energy Dashboard, and Inverter On/Off switch)",
         }
-
-        # Retrieve recent logs from coordinator if available
-        coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
-        recent_logs_text = coordinator.get_recent_logs_formatted() if coordinator else "Brak aktywnych logów."
 
         schema = vol.Schema({
             vol.Required(CONF_ENTITY_MODE, default=current_mode): vol.In(mode_options),
@@ -170,7 +173,20 @@ class AohaiOptionsFlowHandler(config_entries.OptionsFlow):
         })
 
         return self.async_show_form(
-            step_id="init",
+            step_id="settings",
             data_schema=schema,
-            description_placeholders={"recent_logs": recent_logs_text},
+        )
+
+    async def async_step_logs(self, user_input=None):
+        """View recent cloud diagnostic events."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=self.config_entry.options)
+
+        coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        recent_logs_text = coordinator.get_recent_logs_formatted() if coordinator else "No cloud events recorded yet."
+
+        return self.async_show_form(
+            step_id="logs",
+            data_schema=vol.Schema({}),
+            description_placeholders={"logs": recent_logs_text},
         )

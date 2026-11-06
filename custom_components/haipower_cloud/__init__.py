@@ -67,8 +67,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Forward setups based on selected entity mode
     if entity_mode == ENTITY_MODE_BASIC:
-        active_platforms = [Platform.SENSOR]
-        _LOGGER.info("HaiPower Cloud loaded in BASIC mode (Sensors only, no controls)")
+        active_platforms = [Platform.SENSOR, Platform.SWITCH]
+        _LOGGER.info("HaiPower Cloud loaded in BASIC mode (Basic sensors and Inverter Operation switch)")
     else:
         active_platforms = PLATFORMS
         _LOGGER.info("HaiPower Cloud loaded in FULL mode (All sensors and controls active)")

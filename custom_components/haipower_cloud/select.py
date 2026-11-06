@@ -40,7 +40,7 @@ class AohaiPowerPrioritySelect(CoordinatorEntity[AohaiDataUpdateCoordinator], Se
     """Control power supply priority (SOL / UTI / SBU)."""
 
     _attr_has_entity_name = True
-    _attr_name = "Power Supply Priority (Priorytet zasilania odbiorników)"
+    _attr_name = "Power Supply Priority"
     _attr_icon = "mdi:transmission-tower-export"
     _attr_options = POWER_PRIORITY_OPTIONS
 
@@ -77,7 +77,7 @@ class AohaiChargingPrioritySelect(CoordinatorEntity[AohaiDataUpdateCoordinator],
     """Control battery charging priority (CSO / SNU / OSO)."""
 
     _attr_has_entity_name = True
-    _attr_name = "Charging Priority (Priorytet ładowania baterii)"
+    _attr_name = "Charging Priority"
     _attr_icon = "mdi:battery-charging-wireless"
     _attr_options = CHARGING_PRIORITY_OPTIONS
 
@@ -112,7 +112,7 @@ class AohaiAcInputModeSelect(CoordinatorEntity[AohaiDataUpdateCoordinator], Sele
     """Control AC Input Voltage Range (APL / UPS)."""
 
     _attr_has_entity_name = True
-    _attr_name = "Grid Input Voltage Range (Zakres napięcia wejściowego AC)"
+    _attr_name = "Grid Input Voltage Range"
     _attr_icon = "mdi:sine-wave"
     _attr_options = AC_INPUT_OPTIONS
 
@@ -147,7 +147,7 @@ class AohaiGenPortModeSelect(CoordinatorEntity[AohaiDataUpdateCoordinator], Sele
     """Control GEN Port Working Mode (0=Generator, 1=Microinverter, 2=Smart Load)."""
 
     _attr_has_entity_name = True
-    _attr_name = "GEN Port Work Mode (Tryb pracy portu generatora)"
+    _attr_name = "GEN Port Work Mode"
     _attr_icon = "mdi:generator-portable"
     _attr_options = GEN_MODE_OPTIONS
 

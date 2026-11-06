@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for Aohai HaiPower / Sandisolar integration."""
+"""DataUpdateCoordinator for HaiPower Cloud / Sandisolar integration."""
 import logging
 import datetime
 from collections import deque
@@ -12,7 +12,7 @@ from .api import AohaiApiClient, AohaiApiError
 _LOGGER = logging.getLogger(__name__)
 
 class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching Aohai inverter data."""
+    """Class to manage fetching HaiPower inverter data."""
 
     def __init__(
         self,
@@ -49,9 +49,9 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
         self.last_battery_power = None
         self.power_speed = 0.0
 
-        # Ring buffer for recent diagnostic logs (last 20 messages)
-        self.recent_logs = deque(maxlen=20)
-        self._add_log("Inicjalizacja koordynatora HaiPower Cloud.")
+        # Ring buffer for recent diagnostic logs (last 25 messages)
+        self.recent_logs = deque(maxlen=25)
+        self._add_log("HaiPower Cloud coordinator initialized.")
 
         super().__init__(
             hass,
@@ -66,13 +66,13 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
         self.recent_logs.append(f"[{timestamp}] {message}")
 
     def get_recent_logs_formatted(self) -> str:
-        """Return formatted string of recent logs."""
+        """Return formatted multiline string of recent logs."""
         if not self.recent_logs:
-            return "Brak zarejestrowanych zdarzeń."
+            return "No cloud events recorded yet."
         return "\n".join(reversed(self.recent_logs))
 
     async def _async_update_data(self):
-        """Fetch real-time data, detailed info, and settings from Aohai API."""
+        """Fetch real-time data, detailed info, and settings from HaiPower Cloud API."""
         try:
             device_info = await self.hass.async_add_executor_job(
                 self.client.get_device_info, self.dsn
@@ -129,7 +129,7 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
             soc = float(device_info.get("soc") or 0.0)
             if self.last_soc is not None and self.last_soc_time is not None:
                 dt_h = (now - self.last_soc_time).total_seconds() / 3600.0
-                if dt_h >= (10.0 / 3600.0):  # update speed if >= 10s elapsed
+                if dt_h >= (10.0 / 3600.0):  # update if >= 10s elapsed
                     self.soc_speed = round((soc - self.last_soc) / dt_h, 2)
                     if self.last_battery_power is not None:
                         self.power_speed = round((net_battery_power - self.last_battery_power) / dt_h, 1)
@@ -148,26 +148,26 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
             if vbat < 30.0:
                 vbat = 51.2
 
-            eta_text = "Standby (Czuwanie)"
+            eta_text = "Standby"
             if pcharge > 25.0 and soc < 99.5:
                 total_wh = capacity_ah * vbat
                 needed_wh = total_wh * ((100.0 - soc) / 100.0)
                 hours_left = needed_wh / pcharge
                 if hours_left < 24.0:
                     finish_time = now + datetime.timedelta(hours=hours_left)
-                    eta_text = f"Pełna ok. {finish_time.strftime('%H:%M')} (za {int(hours_left)}h {int((hours_left % 1) * 60)}m)"
+                    eta_text = f"Full at {finish_time.strftime('%H:%M')} (in {int(hours_left)}h {int((hours_left % 1) * 60)}m)"
                 else:
-                    eta_text = "Ładowanie powolne (>24h)"
+                    eta_text = "Slow Charging (>24h)"
             elif pdischarge > 25.0 and soc > 4.0:
                 total_wh = capacity_ah * vbat
                 available_wh = total_wh * (soc / 100.0)
                 hours_left = available_wh / pdischarge
                 if hours_left < 48.0:
-                    eta_text = f"Rozładowanie za {int(hours_left)}h {int((hours_left % 1) * 60)}m"
+                    eta_text = f"Discharging in {int(hours_left)}h {int((hours_left % 1) * 60)}m"
                 else:
-                    eta_text = "Rozładowanie powolne (>48h)"
+                    eta_text = "Slow Discharging (>48h)"
             elif soc >= 99.5:
-                eta_text = "Naładowana (100%)"
+                eta_text = "Full (100%)"
 
             calculated = {
                 "pv1_current": pv1_current,
@@ -187,7 +187,7 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
 
             status_str = device_info.get("status2") or "Normal"
             self._add_log(
-                f"Pobrano telemetrię: Status={status_str}, PV={pv_total}W, Dom={load_power}W, Bat={soc}% ({net_battery_power}W), Sieć={grid_signed}W"
+                f"Telemetry updated: Status={status_str}, PV={pv_total}W, Load={load_power}W, Bat={soc}% ({net_battery_power}W), Grid={grid_signed}W"
             )
 
             return {
@@ -197,18 +197,18 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
                 "calculated": calculated,
             }
         except AohaiApiError as err:
-            self._add_log(f"Błąd komunikacji z chmurą: {err}")
-            raise UpdateFailed(f"Error communicating with Aohai API: {err}") from err
+            self._add_log(f"Cloud communication error: {err}")
+            raise UpdateFailed(f"Error communicating with HaiPower API: {err}") from err
 
     async def async_set_parameter(self, key_value_list: list[str]) -> bool:
         """Send command to update inverter parameters and refresh local state."""
-        self._add_log(f"Wysyłanie parametru do inwertera: {key_value_list}")
+        self._add_log(f"Sending parameter to inverter: {key_value_list}")
         success = await self.hass.async_add_executor_job(
             self.client.set_parameter, self.csn, self.dsn, self.addr, key_value_list
         )
         if success:
-            self._add_log(f"Parametr przyjęty pomyślnie: {key_value_list}")
+            self._add_log(f"Parameter set successfully: {key_value_list}")
             await self.async_request_refresh()
         else:
-            self._add_log(f"Falownik odrzucił parametr: {key_value_list}")
+            self._add_log(f"Inverter rejected parameter: {key_value_list}")
         return success

@@ -100,12 +100,12 @@ def _get_battery_status(data: dict) -> str:
         pcharge_val = float(pcharge)
         pdischarge_val = float(pdischarge)
     except (ValueError, TypeError):
-        return "Standby (Czuwanie)"
+        return "Standby"
     if pcharge_val > 15.0:
-        return "Charging (Ładowanie)"
+        return "Charging"
     if pdischarge_val > 15.0:
-        return "Discharging (Rozładowywanie)"
-    return "Standby (Czuwanie)"
+        return "Discharging"
+    return "Standby"
 
 
 SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
@@ -114,14 +114,14 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="inverter_status",
-        name="Inverter Status (Stan pracy falownika)",
+        name="Inverter Status",
         icon="mdi:information-outline",
         value_fn=_get_status,
         is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="operation_mode",
-        name="Operation Mode (Tryb pracy zasilania)",
+        name="Operation Mode",
         icon="mdi:tune-vertical",
         value_fn=_get_op_mode,
         is_basic=True,
@@ -132,28 +132,28 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="fault_code",
-        name="Fault Code (Kod błędu Master/Slave)",
+        name="Fault Code",
         icon="mdi:alert-circle",
         value_fn=_get_fault_code,
         is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="fault_description",
-        name="Fault Description (Opis błędu)",
+        name="Fault Description",
         icon="mdi:alert",
         value_fn=_get_fault_desc,
         is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="warn_code",
-        name="Warn Code (Kod ostrzeżenia Master/Slave)",
+        name="Warning Code",
         icon="mdi:alert-box-outline",
         value_fn=_get_warn_code,
         is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="warn_description",
-        name="Warn Description (Opis ostrzeżenia)",
+        name="Warning Description",
         icon="mdi:bell-alert-outline",
         value_fn=_get_warn_desc,
         is_basic=True,
@@ -164,28 +164,28 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="device_serial_number",
-        name="Device Serial Number (Numer seryjny DSN)",
+        name="Device Serial Number",
         icon="mdi:barcode",
         value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("dsn") or data.get("telemetry", {}).get("dsn") or "Unknown",
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="data_logger_number",
-        name="Data Logger CSN (Numer seryjny Wi-Fi)",
+        name="Data Logger CSN",
         icon="mdi:wifi",
         value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("csn") or data.get("telemetry", {}).get("csn") or "Unknown",
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="device_model",
-        name="Device Model (Model urządzenia)",
+        name="Device Model",
         icon="mdi:solar-power",
         value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("module") or "SD-PRO-EU 6.5K",
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="system_time",
-        name="System Time (Czas systemowy falownika)",
+        name="System Time",
         icon="mdi:clock-outline",
         value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("sysTime") or data.get("telemetry", {}).get("lastTime") or "Unknown",
         is_basic=True,
@@ -220,7 +220,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="total_work_time",
-        name="Total Work Time (Łączny czas pracy)",
+        name="Total Work Time",
         native_unit_of_measurement="h",
         icon="mdi:timer-outline",
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -233,28 +233,28 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="battery_type",
-        name="Battery Type (Typ baterii)",
+        name="Battery Type",
         icon="mdi:battery-heart-variant",
         value_fn=_get_battery_type,
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_priority",
-        name="Battery Priority (Priorytet baterii)",
+        name="Battery Priority",
         icon="mdi:battery-charging-outline",
         value_fn=_get_battery_priority,
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_status",
-        name="Battery Status (Status ładowania/rozładowania)",
+        name="Battery Status",
         icon="mdi:battery-sync",
         value_fn=_get_battery_status,
         is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="battery_voltage",
-        name="Battery Voltage (Napięcie baterii)",
+        name="Battery Voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -263,7 +263,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_current",
-        name="Battery Current (Prąd baterii)",
+        name="Battery Current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -272,7 +272,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_max_charge_curr",
-        name="Max Charge Current Allowed (Maks. prąd ładowania BMS)",
+        name="Max Charge Current Allowed",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -281,7 +281,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_max_discharge_curr",
-        name="Max Discharge Current Allowed (Maks. prąd rozładowania BMS)",
+        name="Max Discharge Current Allowed",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -290,7 +290,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_min_cell_voltage",
-        name="Min Cell Voltage (Minimalne napięcie ogniwa)",
+        name="Min Cell Voltage",
         native_unit_of_measurement="mV",
         icon="mdi:battery-minus",
         state_class=SensorStateClass.MEASUREMENT,
@@ -299,7 +299,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_max_cell_voltage",
-        name="Max Cell Voltage (Maksymalne napięcie ogniwa)",
+        name="Max Cell Voltage",
         native_unit_of_measurement="mV",
         icon="mdi:battery-plus",
         state_class=SensorStateClass.MEASUREMENT,
@@ -308,7 +308,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_temperature",
-        name="Battery Temperature (Temperatura baterii)",
+        name="Battery Temperature",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -317,7 +317,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_rated_capacity",
-        name="Battery Rated Capacity (Pojemność znamionowa)",
+        name="Battery Rated Capacity",
         native_unit_of_measurement="Ah",
         icon="mdi:battery-high",
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSGaugeFCC", 0.0),
@@ -325,7 +325,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_charging_voltage",
-        name="Battery Charging Voltage (Napięcie zadane BMS)",
+        name="Battery Charging Voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -334,21 +334,21 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_module_count",
-        name="Number of Battery Modules (Liczba modułów baterii)",
+        name="Battery Module Count",
         icon="mdi:view-grid",
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("moduleNum", 1),
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_cell_count",
-        name="Number of Battery Cells (Liczba ogniw baterii)",
+        name="Battery Cell Count",
         icon="mdi:view-column",
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("cellNum", 16),
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_soc",
-        name="Battery SOC (Poziom naładowania baterii)",
+        name="Battery SOC",
         native_unit_of_measurement=PERCENTAGE,
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -357,7 +357,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_soh",
-        name="Battery SOH (Kondycja baterii)",
+        name="Battery SOH",
         native_unit_of_measurement=PERCENTAGE,
         icon="mdi:heart-pulse",
         state_class=SensorStateClass.MEASUREMENT,
@@ -370,7 +370,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="pv_total_power",
-        name="PV Total Power (Moc łączna fotowoltaiki)",
+        name="PV Total Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -379,7 +379,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="house_load_power",
-        name="House Load Power (Moc pobierana przez dom)",
+        name="House Load Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -388,7 +388,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="eps_output_power",
-        name="EPS Backup Load Power (Moc wyjścia awaryjnego EPS)",
+        name="EPS Backup Load Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -397,7 +397,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_charging_power",
-        name="Battery Charging Power (Moc ładowania baterii)",
+        name="Battery Charging Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -406,7 +406,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_discharging_power",
-        name="Battery Discharging Power (Moc rozładowania baterii)",
+        name="Battery Discharging Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -415,7 +415,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="grid_active_power",
-        name="Grid Active Power (Moc czynna sieci AC)",
+        name="Grid Active Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -424,7 +424,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="extra_ac_power_to_grid",
-        name="Grid Export Power (Moc oddawana do sieci)",
+        name="Grid Export Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -433,7 +433,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="generator_active_power",
-        name="Generator Active Power (Moc czynna agregatu)",
+        name="Generator Active Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -442,7 +442,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="generator_phase_r_power",
-        name="Generator Phase R Power (Moc fazy R agregatu)",
+        name="Generator Phase R Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -455,7 +455,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="pv1_voltage",
-        name="PV1 Voltage (Napięcie stringu PV1)",
+        name="PV1 Voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -464,7 +464,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="pv1_power",
-        name="PV1 Power (Moc stringu PV1)",
+        name="PV1 Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -473,7 +473,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="pv1_current",
-        name="PV1 Current (Prąd stringu PV1)",
+        name="PV1 Current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -482,7 +482,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="pv2_voltage",
-        name="PV2 Voltage (Napięcie stringu PV2)",
+        name="PV2 Voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -491,7 +491,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="pv2_power",
-        name="PV2 Power (Moc stringu PV2)",
+        name="PV2 Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -500,7 +500,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="pv2_current",
-        name="PV2 Current (Prąd stringu PV2)",
+        name="PV2 Current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -509,7 +509,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="ac_voltage_phase_r",
-        name="Grid Voltage Phase R (Napięcie sieci faza R)",
+        name="Grid Voltage Phase R",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -518,7 +518,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="grid_current",
-        name="Grid Current (Prąd sieci AC)",
+        name="Grid Current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -527,7 +527,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="eps_current",
-        name="EPS Current (Prąd wyjścia awaryjnego EPS)",
+        name="EPS Current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -536,7 +536,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="eps_apparent_power",
-        name="EPS Apparent Power (Moc pozorna EPS)",
+        name="EPS Apparent Power",
         native_unit_of_measurement="VA",
         device_class=SensorDeviceClass.APPARENT_POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -545,7 +545,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="grid_frequency",
-        name="Grid Frequency (Częstotliwość sieci)",
+        name="Grid Frequency",
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -554,7 +554,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="dc_bus_voltage",
-        name="DC Bus Voltage (Napięcie szyny DC)",
+        name="DC Bus Voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -567,7 +567,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="daily_pv_energy",
-        name="Daily PV Energy (Produkcja PV dzisiaj)",
+        name="Daily PV Energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -576,7 +576,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="total_pv_energy",
-        name="Total PV Energy (Produkcja PV łączna)",
+        name="Total PV Energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -585,7 +585,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="daily_load_energy",
-        name="Daily Load Energy (Zużycie domu dzisiaj)",
+        name="Daily Load Energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -594,7 +594,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="total_load_energy",
-        name="Total Load Energy (Zużycie domu łączne)",
+        name="Total Load Energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -603,7 +603,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="daily_grid_in_energy",
-        name="Daily Grid Energy Import (Pobór z sieci dzisiaj)",
+        name="Daily Grid Energy Import",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -612,7 +612,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="total_grid_in_energy",
-        name="Total Grid Energy Import (Pobór z sieci łączny)",
+        name="Total Grid Energy Import",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -621,7 +621,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="daily_grid_out_energy",
-        name="Daily Grid Energy Export (Oddanie do sieci dzisiaj)",
+        name="Daily Grid Energy Export",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -630,7 +630,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="total_grid_out_energy",
-        name="Total Grid Energy Export (Oddanie do sieci łączne)",
+        name="Total Grid Energy Export",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -639,7 +639,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="daily_battery_charge_energy",
-        name="Daily Battery Charge Energy (Naładowano dzisiaj)",
+        name="Daily Battery Charge Energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -648,7 +648,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="daily_battery_discharge_energy",
-        name="Daily Battery Discharge Energy (Rozładowano dzisiaj)",
+        name="Daily Battery Discharge Energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -657,7 +657,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="total_battery_charge_energy",
-        name="Total Battery Charge Energy (Naładowano łącznie)",
+        name="Total Battery Charge Energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -666,7 +666,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="total_battery_discharge_energy",
-        name="Total Battery Discharge Energy (Rozładowano łącznie)",
+        name="Total Battery Discharge Energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -679,7 +679,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="self_consumption_today",
-        name="Self-Consumption Today (Autokonsumpcja dzisiaj)",
+        name="Self-Consumption Today",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -688,7 +688,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="self_consumption_total",
-        name="Self-Consumption Total (Autokonsumpcja łączna)",
+        name="Self-Consumption Total",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -697,7 +697,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="input_energy_today",
-        name="Total Energy Input Today (Energia wprowadzona dzisiaj)",
+        name="Total Energy Input Today",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -706,7 +706,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="input_energy_total",
-        name="Total Energy Input Total (Energia wprowadzona łączna)",
+        name="Total Energy Input Total",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -715,7 +715,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="solar_direct_to_load_today",
-        name="Solar to Load Today (Bezpośrednie zasilanie z PV dzisiaj)",
+        name="Solar to Load Today",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -724,7 +724,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="solar_direct_to_load_total",
-        name="Solar to Load Total (Bezpośrednie zasilanie z PV łączne)",
+        name="Solar to Load Total",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -733,7 +733,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="grid_direct_to_load_today",
-        name="Grid to Load Today (Bezpośrednie zasilanie z sieci dzisiaj)",
+        name="Grid to Load Today",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -742,7 +742,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="grid_direct_to_load_total",
-        name="Grid to Load Total (Bezpośrednie zasilanie z sieci łączne)",
+        name="Grid to Load Total",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -755,14 +755,14 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="battery_charge_eta",
-        name="Battery Charge ETA (Szacowany czas pełnego naładowania)",
+        name="Battery Charge ETA",
         icon="mdi:battery-clock",
         value_fn=lambda data: data.get("calculated", {}).get("battery_charge_eta", "Standby"),
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_soc_speed",
-        name="Battery SOC Speed (Tempo zmiany naładowania)",
+        name="Battery SOC Speed",
         native_unit_of_measurement="%/h",
         icon="mdi:speedometer",
         state_class=SensorStateClass.MEASUREMENT,
@@ -771,7 +771,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="battery_power_speed",
-        name="Battery Power Speed (Dynamika mocy baterii)",
+        name="Battery Power Speed",
         native_unit_of_measurement="W/h",
         icon="mdi:chart-line",
         state_class=SensorStateClass.MEASUREMENT,
@@ -780,7 +780,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="avg_pv_power",
-        name="AVG PV Power (Średnia krocząca mocy PV 5m)",
+        name="AVG PV Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -789,7 +789,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="avg_battery_power",
-        name="AVG Battery Power (Średnia krocząca mocy baterii 5m)",
+        name="AVG Battery Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -798,7 +798,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="avg_grid_power",
-        name="AVG Grid Power (Średnia krocząca mocy sieci 5m)",
+        name="AVG Grid Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -807,7 +807,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="avg_eps_load",
-        name="AVG EPS Load (Średnia krocząca obciążenia EPS 5m)",
+        name="AVG EPS Load",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -816,7 +816,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="avg_house_load",
-        name="AVG House Load (Średnia krocząca poboru domu 5m)",
+        name="AVG House Load",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -829,7 +829,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="max_inverter_power",
-        name="Inverter Max Output Power (Moc znamionowa inwertera)",
+        name="Inverter Max Output Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         value_fn=lambda data: data.get("params", {}).get("maxInvPower", 6000.0),
@@ -837,21 +837,21 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="afci_value",
-        name="AFCI Detector Value (Detektor zwarć łukowych AFCI)",
+        name="AFCI Detector Value",
         icon="mdi:shield-flash",
         value_fn=lambda data: data.get("params", {}).get("afCIValue2", 0),
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="ct_mode_status",
-        name="CT Mode Status (Status trybu przekładnika CT)",
+        name="CT Mode Status",
         icon="mdi:current-ac",
         value_fn=lambda data: "CT Enabled" if data.get("params", {}).get("ctMode") == 1 else "Meter / Disabled",
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="ct_ratio_status",
-        name="CT Ratio Status (Bieżąca przekładnia CT)",
+        name="CT Ratio Status",
         icon="mdi:numeric",
         value_fn=lambda data: data.get("params", {}).get("ctRatio", 0),
         is_basic=False,
@@ -862,7 +862,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     AohaiSensorEntityDescription(
         key="co2_reduction",
-        name="CO2 Reduction Total (Ograniczenie emisji CO2)",
+        name="CO2 Reduction Total",
         native_unit_of_measurement="kg",
         icon="mdi:molecule-co2",
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -871,7 +871,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="tree_equivalent",
-        name="Equivalent Trees Planted (Odpowiednik posadzonych drzew)",
+        name="Equivalent Trees Planted",
         icon="mdi:tree",
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("treeTotal", 0.0),
@@ -879,16 +879,16 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     ),
     AohaiSensorEntityDescription(
         key="last_telemetry_time",
-        name="Last Telemetry Timestamp (Czas ostatniej telemetrii)",
+        name="Last Telemetry Timestamp",
         icon="mdi:clock-check-outline",
         value_fn=lambda data: data.get("telemetry", {}).get("lastTime") or "Unknown",
         is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="cloud_recent_logs",
-        name="Cloud Diagnostic Logs (Ostatnie zdarzenia chmury)",
+        name="Cloud Diagnostic Logs",
         icon="mdi:math-log",
-        value_fn=lambda data: data.get("telemetry", {}).get("status2") or "Połączono z chmurą",
+        value_fn=lambda data: data.get("telemetry", {}).get("status2") or "Connected to Cloud",
         extra_attrs_fn=lambda coordinator: {"recent_logs": list(coordinator.recent_logs)},
         is_basic=True,
     ),

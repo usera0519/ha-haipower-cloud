@@ -7,7 +7,12 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_ENTITY_MODE,
+    ENTITY_MODE_BASIC,
+    ENTITY_MODE_FULL,
+)
 from .coordinator import AohaiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -15,104 +20,114 @@ _LOGGER = logging.getLogger(__name__)
 SWITCH_CONFIGS = [
     {
         "key": "power_switch",
-        "name": "Inverter Operation (Falownik On/Off)",
+        "name": "Inverter Operation",
         "param": "onOff",
         "alt_param": "inveterOnOff",
         "alt_telemetry_key": "onoff",
         "icon": "mdi:power",
+        "is_basic": True,
     },
     {
         "key": "buzzer_switch",
-        "name": "Buzzer (Sygnalizator dźwiękowy)",
+        "name": "Audible Buzzer",
         "param": "dspBeepOnOff",
         "icon": "mdi:volume-high",
     },
     {
         "key": "anti_backflow_switch",
-        "name": "Anti-Backflow (Blokada eksportu do sieci - Zero Export)",
+        "name": "Anti-Backflow (Zero Export)",
         "param": "localAntiBackflowEnable",
         "icon": "mdi:transmission-tower-export",
     },
     {
         "key": "ct_enable",
-        "name": "CT Enable (Zewnętrzny przekładnik prądowy CT)",
+        "name": "External CT Enable",
         "param": "ctMode",
         "icon": "mdi:current-ac",
     },
     {
         "key": "overload_to_bypass",
-        "name": "Overload to Bypass (Przełączenie na sieć przy przeciążeniu)",
+        "name": "Overload to Bypass",
         "param": "overloadToBypass",
         "icon": "mdi:swap-horizontal-bold",
     },
     {
         "key": "zero_current_enable",
-        "name": "Zero Power Output (Całkowite odcięcie wypływu)",
+        "name": "Zero Power Output",
         "param": "zeroCurrentEnable",
         "icon": "mdi:cancel",
     },
     {
         "key": "vfrt_enable",
-        "name": "VFRT Enable (Stabilizacja napięciowa VFRT)",
+        "name": "VFRT Enable",
         "param": "vfrtEn",
         "icon": "mdi:sine-wave",
     },
     {
         "key": "generator_dry_contact",
-        "name": "Generator Dry Contact (Styk bezpotencjałowy auto-startu)",
+        "name": "Generator Dry Contact",
         "param": "dryControl",
         "icon": "mdi:electric-switch",
     },
     {
         "key": "ac_charge_enable_switch",
-        "name": "AC Grid Charging (Ładowanie baterii z sieci AC)",
+        "name": "AC Grid Charging",
         "param": "acchargeEn",
         "alt_param": "ubAcChargeEnable",
         "icon": "mdi:battery-charging-wire",
     },
     {
         "key": "eps_enable_switch",
-        "name": "EPS Output (Zasilanie awaryjne wyjścia EPS)",
+        "name": "EPS Output",
         "param": "epSEn",
         "icon": "mdi:home-lightning-bolt",
     },
     {
         "key": "bypass_enable_switch",
-        "name": "Bypass Mode (Obejście sieciowe Bypass)",
+        "name": "Bypass Mode",
         "param": "bypassEn",
         "icon": "mdi:swap-horizontal",
     },
     {
         "key": "gen_charge_enable_switch",
-        "name": "Generator Charging (Ładowanie baterii z agregatu)",
+        "name": "Generator Charging",
         "param": "genChargeEn",
         "icon": "mdi:generator-portable",
     },
     {
         "key": "equalization_switch",
-        "name": "Battery Equalization (Wyrównywanie cel baterii)",
+        "name": "Battery Equalization",
         "param": "equalization",
         "icon": "mdi:battery-sync",
     },
     {
         "key": "force_full_charge_switch",
-        "name": "Force Full Charge (Wymuszenie pełnego naładowania 100%)",
+        "name": "Force Full Charge",
         "param": "ubForceChargeEnable",
         "alt_param": "forceFullCharge",
         "icon": "mdi:battery-arrow-up",
     },
     {
         "key": "bluetooth_switch",
-        "name": "Bluetooth Broadcast (Rozgłaszanie Bluetooth)",
+        "name": "Bluetooth Broadcast",
         "param": "ubBluetoothEn",
         "icon": "mdi:bluetooth",
     },
 ]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    """Set up HaiPower switches based on a config entry."""
+    """Set up HaiPower switches based on a config entry and entity mode."""
     coordinator: AohaiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entities = [AohaiGenericSwitch(coordinator, conf) for conf in SWITCH_CONFIGS]
+    entity_mode = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL))
+
+    if entity_mode == ENTITY_MODE_BASIC:
+        configs = [c for c in SWITCH_CONFIGS if c.get("is_basic", False)]
+        _LOGGER.info("Setting up %d BASIC switches for %s", len(configs), coordinator.dsn)
+    else:
+        configs = SWITCH_CONFIGS
+        _LOGGER.info("Setting up %d FULL switches for %s", len(configs), coordinator.dsn)
+
+    entities = [AohaiGenericSwitch(coordinator, conf) for conf in configs]
     async_add_entities(entities)
 
 

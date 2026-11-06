@@ -23,7 +23,7 @@ NUMBER_CONFIGS = [
     # ---------------- Battery Charging Currents ----------------
     {
         "key": "max_battery_charge_current",
-        "name": "Max Battery Charge Current (Maks. prąd ładowania baterii)",
+        "name": "Max Battery Charge Current",
         "param": "intchargecurrentlimit",
         "min": 1.0,
         "max": 120.0,
@@ -34,7 +34,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "ac_charging_current_limit",
-        "name": "AC Grid Charge Current (Limit prądu ładowania z sieci AC)",
+        "name": "AC Grid Charge Current",
         "param": "acChargingCurrent",
         "min": 1.0,
         "max": 100.0,
@@ -45,7 +45,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "generator_charging_current_limit",
-        "name": "Generator Charge Current (Limit ładowania z agregatu)",
+        "name": "Generator Charge Current",
         "param": "genChargeLimit",
         "min": 1.0,
         "max": 120.0,
@@ -56,7 +56,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "generator_input_power",
-        "name": "Generator Rated Power (Moc wejściowa agregatu)",
+        "name": "Generator Rated Power",
         "param": "genInputPower",
         "min": 100.0,
         "max": 10000.0,
@@ -67,7 +67,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "ct_current_ratio",
-        "name": "CT Current Ratio (Przekładnia przekładnika prądowego 1~3000)",
+        "name": "CT Current Ratio (1~3000)",
         "param": "ctRatio",
         "min": 1.0,
         "max": 3000.0,
@@ -80,7 +80,7 @@ NUMBER_CONFIGS = [
     # ---------------- Battery Voltages ----------------
     {
         "key": "vbat_constant_charge",
-        "name": "Battery Charging CV Voltage (Napięcie absorpcji CV)",
+        "name": "Battery Charging CV Voltage",
         "param": "vbatconstantcharge",
         "min": 48.0,
         "max": 59.2,
@@ -91,7 +91,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "vbat_floating_charge",
-        "name": "Battery Float Voltage (Napięcie podtrzymujące Float)",
+        "name": "Battery Float Voltage",
         "param": "uwFloatVLead100T",
         "min": 48.0,
         "max": 58.4,
@@ -102,7 +102,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "bat2ac_volt",
-        "name": "Battery to Grid Voltage (SBU: Przełączenie na sieć przy U)",
+        "name": "Battery to Grid Voltage (SBU Mode)",
         "param": "bat2acVolt",
         "min": 44.0,
         "max": 52.0,
@@ -113,7 +113,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "ac2bat_volt",
-        "name": "Grid to Battery Voltage (SBU: Powrót do inwertera przy U)",
+        "name": "Grid to Battery Voltage (SBU Mode)",
         "param": "ac2batVolt",
         "min": 48.0,
         "max": 58.0,
@@ -124,7 +124,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "vbat_stop_discharge",
-        "name": "Battery Low-Voltage Cutoff (Napięcie odcięcia rozładowania)",
+        "name": "Battery Low-Voltage Cutoff",
         "param": "vbatStopForDischarge",
         "min": 40.0,
         "max": 48.0,
@@ -135,7 +135,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "bat_undervolt_alarm",
-        "name": "Battery Under-Voltage Alarm (Alarm niskiego napięcia baterii)",
+        "name": "Battery Under-Voltage Alarm",
         "param": "batUnderVoltPoint",
         "min": 40.0,
         "max": 50.0,
@@ -146,7 +146,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "bat_lv_restart_volt",
-        "name": "Low-Voltage Recovery (Napięcie restartu po rozładowaniu)",
+        "name": "Low-Voltage Recovery",
         "param": "batLVBreakRestartVolt",
         "min": 50.0,
         "max": 58.0,
@@ -157,7 +157,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "bat_need_charge_volt",
-        "name": "Battery Recharge Threshold (Napięcie wymuszenia doładowania)",
+        "name": "Battery Recharge Threshold",
         "param": "batNeedChrVolt",
         "min": 50.0,
         "max": 56.0,
@@ -168,7 +168,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "bat_overvolt_disconnect",
-        "name": "Over-Voltage Disconnect (Odłączenie przy przepięciu baterii)",
+        "name": "Over-Voltage Disconnect",
         "param": "batHighVoltDisConPoint",
         "min": 50.0,
         "max": 62.0,
@@ -181,7 +181,7 @@ NUMBER_CONFIGS = [
     # ---------------- Battery SOC Thresholds ----------------
     {
         "key": "grid_first_stop_soc",
-        "name": "On-Grid Discharge Cutoff SOC (Odcięcie rozładowania sieciowego SOC)",
+        "name": "On-Grid Discharge Cutoff SOC",
         "param": "gridFirstStopSOC",
         "min": 10.0,
         "max": 90.0,
@@ -192,7 +192,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "grid_recover_soc",
-        "name": "On-Grid Recovery SOC (Powrót do rozładowania sieciowego SOC)",
+        "name": "On-Grid Recovery SOC",
         "param": "ubOPRecoverDischargeSOC",
         "min": 20.0,
         "max": 100.0,
@@ -203,7 +203,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "offline_stop_soc",
-        "name": "Off-Grid Discharge Cutoff SOC (Odcięcie rozładowania wyspowego SOC)",
+        "name": "Off-Grid Discharge Cutoff SOC",
         "param": "offLineLoadFirstStopSoc",
         "min": 5.0,
         "max": 90.0,
@@ -214,7 +214,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "offline_recover_soc",
-        "name": "Off-Grid Recovery SOC (Powrót do rozładowania wyspowego SOC)",
+        "name": "Off-Grid Recovery SOC",
         "param": "ubOffGridRecoverDischargeSOC",
         "min": 10.0,
         "max": 100.0,
@@ -225,7 +225,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "charging_cutoff_soc",
-        "name": "Charging Cutoff SOC (Próg zakończenia ładowania baterii SOC)",
+        "name": "Charging Cutoff SOC",
         "param": "batFirststopSOC",
         "min": 50.0,
         "max": 100.0,
@@ -238,7 +238,7 @@ NUMBER_CONFIGS = [
     # ---------------- Secondary / Smart Load Settings ----------------
     {
         "key": "smart_load_cutoff_soc",
-        "name": "Smart Load Cutoff SOC (Odłączenie odbiorników niekrytycznych SOC)",
+        "name": "Smart Load Cutoff SOC",
         "param": "ubSecondLoadDisConSOC",
         "min": 10.0,
         "max": 100.0,
@@ -249,7 +249,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "smart_load_cutoff_volt",
-        "name": "Smart Load Cutoff Voltage (Odłączenie odbiorników niekrytycznych U)",
+        "name": "Smart Load Cutoff Voltage",
         "param": "nonCriticlLoad_BatDisConVolt",
         "min": 42.0,
         "max": 54.0,
@@ -260,7 +260,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "smart_load_recover_soc",
-        "name": "Smart Load Recovery SOC (Ponowne załączenie odbiorników niekrytycznych SOC)",
+        "name": "Smart Load Recovery SOC",
         "param": "nonCriticlLoadRecorveSOC",
         "min": 10.0,
         "max": 100.0,
@@ -271,7 +271,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "smart_load_recover_volt",
-        "name": "Smart Load Recovery Voltage (Ponowne załączenie odbiorników niekrytycznych U)",
+        "name": "Smart Load Recovery Voltage",
         "param": "nonCriticlLoadRecorveVol",
         "min": 42.0,
         "max": 56.0,
@@ -284,7 +284,7 @@ NUMBER_CONFIGS = [
     # ---------------- Grid & Inverter Power ----------------
     {
         "key": "grid_power_compensation",
-        "name": "Anti-Reverse Grid Compensation (Kompensacja mocy zerowego eksportu)",
+        "name": "Anti-Reverse Grid Compensation",
         "param": "uwGridPowerCompensation",
         "min": 0.0,
         "max": 500.0,
@@ -295,7 +295,7 @@ NUMBER_CONFIGS = [
     },
     {
         "key": "active_power_rate",
-        "name": "Active Power Rate Limit (Limit mocy czynnej falownika %)",
+        "name": "Active Power Rate Limit",
         "param": "activePRate",
         "min": 1.0,
         "max": 100.0,
