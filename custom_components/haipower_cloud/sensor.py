@@ -884,14 +884,6 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
         value_fn=lambda data: data.get("telemetry", {}).get("lastTime") or "Unknown",
         is_basic=True,
     ),
-    AohaiSensorEntityDescription(
-        key="cloud_recent_logs",
-        name="Cloud Diagnostic Logs",
-        icon="mdi:math-log",
-        value_fn=lambda data: data.get("telemetry", {}).get("status2") or "Connected to Cloud",
-        extra_attrs_fn=lambda coordinator: {"recent_logs": list(coordinator.recent_logs)},
-        is_basic=True,
-    ),
 )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:

@@ -12,125 +12,76 @@ A comprehensive Home Assistant custom integration for **Sandisolar** and compati
 
 ---
 
-> ⚠️ **Disclaimer**  
-> This is an **unofficial, community-developed integration**. It is not affiliated with, sponsored by, endorsed by, or supported by Sandisolar, Aohai Digital Power, or the HaiPower cloud platform. All product names, trademarks, and registered trademarks belong to their respective owners.
-
-> ℹ️ **Hardware Testing & Compatibility Notice**  
-> This integration has been **tested and verified exclusively on the Sandisolar SD-PRO-EU 6.5K Hybrid Solar Inverter (Model AO-6KSL-G3)** running with the HaiPower cloud data-logger.  
-> Other power ratings and models in the Sandisolar / Aohai family (e.g. 3.6K, 5K, 6K, 8K, 10K, 12K) may also function properly if they utilize the same HaiPower cloud interface, but have not been directly tested by the author.
+> 📖 **Full Entity Reference & Compatibility Matrix**  
+> For an in-depth explanation of every entity, calculation, setting threshold, and model-by-model compatibility breakdown, see the:  
+> 👉 **[Detailed Entity Encyclopedia & Inverter Compatibility Matrix](docs/ENTITIES.md)**
 
 ---
 
-## ⚡ How This Integration Works
+> ⚠️ **Disclaimer**  
+> This is an **unofficial, community-developed integration**. It is not affiliated with, sponsored by, or supported by Sandisolar, Aohai Digital Power, or the HaiPower cloud platform. All product names and trademarks belong to their respective owners.
 
-The integration connects directly to the official HaiPower platform (`eu.aohaidigitalpower.com`) using your account credentials:
-* **Automatic Captcha Resolution:** Authentication verification tokens are decoded automatically in the background—no manual captcha solving, image recognition, or OCR is required.
-* **Auto-Discovery:** Automatically scans your account for all associated solar stations and inverters, allowing you to select your device and assign a custom friendly name during setup.
-* **Bi-directional Controls:** Sends parameter updates and operational commands (turn on/standby, charging priorities, voltage and current limits, anti-backflow, smart load cut-offs) directly to the inverter.
+---
+
+## ☀️ Supported Inverter Families & Differences
+
+Based on the official technical manuals, the HaiPower Cloud platform supports several inverter architectures:
+
+1. **AO-6KSL-G3 / GSA-PRO Series (5kW / 6.2kW / 6.5kW)** *(Primary verified model)*  
+   * **Phase & Battery:** Single-phase 230V AC with 48V Low-Voltage battery (40V–60V DC).
+   * **Solar Input:** 1 high-current MPPT (up to 40A DC, 90–450V DC range, max Voc 500V DC).
+   * **Outputs & Controls:** Dual AC outputs (Main UPS output + Smart Load second output with separate disconnect voltage/SOC thresholds), external CT clamp with programmable ratio (1~3000), zero-export anti-backflow, generator dry-contact auto-start, parallel up to 6 units.
+2. **GSA-5-6.2K1P-BL Series (Standard Series)**  
+   * **Phase & Battery:** Single-phase 230V AC, 48V Low-Voltage battery.
+   * **Features:** Single AC output, front panel RGB status ring, off-grid and on-grid feed-in, CT/Meter support.
+3. **SD-HYM-4862HWP Series (Outdoor Hybrid)**  
+   * **Phase & Battery:** Single-phase 230V AC, 48V Low-Voltage battery, IP65 waterproof enclosure.
+   * **Features:** Dual outputs (Full load + Smart load), parallel operation, generator dry contact, Wi-Fi logger.
+4. **HSC-3-8K1P-BL Series (3kW – 8kW High-End Residential)**  
+   * **Phase & Battery:** Single-phase 230V AC, 48V Low-Voltage battery.
+   * **Solar Input:** Dual independent MPPT trackers (ideal for East-West roof configurations).
+   * **Features:** <10ms UPS switchover, peak shaving, Time-of-Use (TOU) tariffs, microinverter AC coupling on GEN port.
+5. **HTA-15-30K3P-BH Series (15kW – 30kW Commercial Three-Phase)**  
+   * **Phase & Battery:** Three-phase 400V AC, High-Voltage Battery System (150V–800V DC).
+   * **Solar Input:** 2 to 4 MPPT trackers (up to 1000V DC Voc, up to 45kW PV input).
+   * **Features:** 100% unbalanced 3-phase output, dual EPS backup circuits, commercial 3-phase CT/Meter support.
+6. **FSF-1.5-2K1P-BL Series (1.5kW – 2kW Compact Storage)**  
+   * **Phase & Battery:** Single-phase 230V AC, 12V or 24V Low-Voltage battery.
+   * **Features:** Designed for balcony solar, cabins, and mobile RV applications. Single MPPT (30–400V), single AC output.
+
+---
+
+## ⚡ Key Capabilities
+
+* **100% Cloud-Native:** Works via Wi-Fi logger directly through `eu.aohaidigitalpower.com`. No Modbus RS485 converter or custom hardware required.
+* **Automatic Captcha Resolution:** Authentication verification tokens are decoded automatically in the background—no manual captcha input.
+* **Entity Mode Selection (Basic vs Full):**
+  * **Basic Mode:** Lightweight profile exposing only essential sensors for Home Assistant Energy Dashboard, voltages, powers, operational status, fault/warn alarms, and the `Inverter Operation` switch.
+  * **Full Mode:** Complete profile with all 87 sensors, 15 switches, 25 numbers, 4 selects, and 3 buttons (BMS cell diagnostics, moving averages, charge ETA, Smart Load shedding, generator controls, and CT buttons).
+* **CT Calibration & Detection Buttons:** Directly trigger hardware CT calibration (`register 96=1`) and polarity detection (`register 96=2`) from Home Assistant.
+* **Predictive Battery Analytics:** Real-time calculation of Battery Charge ETA, SOC speed (%/h), battery power dynamic speed (W/h), and 5-minute moving averages (AVG).
 
 ---
 
 ## 🔐 Platform Access Codes & Passwords
 
-During analysis of the official HaiPower platform interface, the following access passwords and validation algorithms were identified:
-
-### 1. Web Portal & Mobile App "Advanced Settings" Password
-When accessing **Advanced Settings** in the HaiPower web portal or mobile application, a daily password is required. The password is generated client-side using the local date:
-$$\text{Password} = \text{"ah"} + \text{YYYYMMDD}$$
-
-* **Examples:**
-  * If the date is `2026-11-05` $\rightarrow$ Password is `ah20261105`
-  * If the date is `2026-11-06` $\rightarrow$ Password is `ah20261106`
-
-### 2. Web Portal "Remote Wake Up" Code
-* Master wake-up PIN: **`666666`**
-
-### 3. Inverter Physical LCD Hardware Password
-* For on-screen physical LCD settings (such as restoring factory settings or configuring anti-reverse grid feed power as described in the user manual):
-  * Service PIN: **`618`**
-
----
-
-## 🚀 Available Entities & Features
-
-### 1. Home Assistant Energy Dashboard Compatibility
-* **Real-Time Power:** PV Generation Power, House Load Consumption Power, Inverter Output Power, EPS Backup Power, Battery Charge & Discharge Power, Grid Active Import/Export Power.
-* **Energy Accumulators:**
-  * Daily & Total PV Energy Generated (`epVAllToday`, `epvTotal`)
-  * Daily & Total House Load Energy Consumed (`eloadToday`, `eloadTotal`)
-  * Daily & Total Grid Energy Imported (`efromGridToday`, `efromGridTotal`)
-  * Daily & Total Grid Energy Exported (`etoGridToday`, `etoGridTotal`)
-  * Daily & Total Battery Charge & Discharge Energy (`echargeToday`, `edischargeToday`, `echargeTotal`, `edischargeTotal`)
-
-### 2. Status & Hardware Diagnostics
-* **Inverter Status:** Real-time state (`ByPass`, `Standby`, `Normal`, `Fault`).
-* **Operation Mode:** Current running mode (`PV Priority Mode (SOL)`, `Mains Priority Mode (UTI)`, `Inverter Priority Mode (SBU)`, `Grid Output Mode`).
-* **Fault Diagnostics:** Master and Slave fault codes with clear text descriptions (e.g. `Normal (No Fault)`, `BMS fault`, `Fan fault`, `PV overvoltage`, `Inverter DC offset too high`).
-* **Warning Diagnostics:** Master and Slave warning codes with descriptive text (e.g. `Normal (No Warning)`, `Low battery`, `Grid unavailable`).
-* **Device Information:** Serial Number (DSN), Data Logger Number (CSN), Device Model, System Time, Total Work Time, Hardware Mode string, ARM Software Version, DSP Software Version, Firmware Version.
-
-### 3. Battery Detailed Information
-* **Type & Priority:** Battery Type (`Lead-acid Battery`, `Lithium Battery`, `Li-ion Battery (No Comm)`), Battery Priority (`Load Priority`, `Battery Priority`, etc.), Battery Status (`Charging`, `Discharging`, `Standby`).
-* **Live Telemetry:** Voltage (V), Current (A), State of Charge (SOC %), State of Health (SOH %), Battery Temperature (°C).
-* **BMS Limits & Health:** Max Charge Current (A), Max Discharge Current (A), Min & Max Cell Voltages (V), BMS Charging Constant Voltage (V), Rated Capacity (Ah), Number of Modules & Cells.
-
-### 4. Interactive Controls & Parameter Configuration
-* **Select Entities:**
-  * `Power Supply Priority`: `SOL (PV Priority)`, `UTI (Mains Priority)`, `SBU (Inverter Priority)`
-  * `Charging Priority`: `CSO (PV Priority)`, `SNU (Hybrid Charging)`, `OSO (PV Only Charging)` *(note: user manual typo 'OSS' is corrected to 'OSO' as used in inverter firmware)*
-  * `Grid Input Mode`: `APL (Wide 90-280V)`, `UPS (Narrow 170-265V)`
-* **Switch Entities:**
-  * `Inverter Operation (On/Off)` (Run / Standby)
-  * `Audible Buzzer Switch` (Mute / Unmute beeper)
-  * `Anti-Backflow Switch` (Enable / Disable zero-export)
-  * `Bluetooth Broadcast Switch`
-  * `AC Grid Charging Enablement`
-  * `EPS Backup Output Enable`
-  * `Bypass Output Enable`
-  * `Generator Charging Enable`
-  * `Battery Equalization Enable`
-  * `Force Full Battery Charging Enable`
-* **Number Configuration Entities:**
-  * `Maximum Battery Charging Current` (1 – 120 A)
-  * `AC Battery Charging Current Limit` (1 – 100 A)
-  * `Generator Charging Current Limit` (1 – 120 A)
-  * `Battery Charging CV Voltage` (48.0 – 59.2 V)
-  * `Float Charging Voltage` (48.0 – 58.4 V)
-  * `Battery-to-Grid Voltage` (44.0 – 52.0 V)
-  * `Grid-to-Battery Voltage` (48.0 – 58.0 V)
-  * `Battery Low-Voltage Shutdown Voltage` (40.0 – 48.0 V)
-  * `Battery Under-Voltage Alarm Threshold` (40.0 – 50.0 V)
-  * `Low-Voltage Recovery Threshold` (50.0 – 58.0 V)
-  * `Battery Recharging Recovery Threshold` (50.0 – 56.0 V)
-  * `Battery Over-Voltage Disconnect Point` (50.0 – 62.0 V)
-  * `On-Grid Discharge Cutoff SOC` (10 – 90 %)
-  * `On-Grid End-of-Discharge Recovery SOC` (20 – 100 %)
-  * `Off-Grid Discharge Cutoff SOC` (5 – 90 %)
-  * `Off-Grid End-of-Discharge Recovery SOC` (10 – 100 %)
-  * `Charging Cut-off SOC` (50 – 100 %)
-  * `Non-Critical Load Disconnection BAT SOC` (10 – 100 %)
-  * `Non-Critical Load Disconnection BAT Voltage` (42.0 – 54.0 V)
-  * `Non-Critical Load Recovery BAT SOC` (10 – 100 %)
-  * `Non-Critical Load Recovery BAT Voltage` (42.0 – 56.0 V)
-  * `Anti-Reverse Mains Power Compensation` (0 – 300 W)
-  * `Active Power Rate Limit` (1 – 100 %)
-* **Button Entity:**
-  * `Force Inverter Data Refresh`
+* **Web Portal & App Advanced Settings Password:** Calculated daily as `ah` + `YYYYMMDD` (e.g. `ah20261107`).
+* **Remote Wake Up Code:** `666666`.
+* **Inverter Physical LCD Service PIN:** `618`.
 
 ---
 
 ## 📦 Installation
 
 ### Method 1: Via HACS (Recommended)
-1. Open Home Assistant and navigate to **HACS** $\rightarrow$ **Integrations**.
-2. Click the three dots in the top right corner and select **Custom repositories**.
-3. Enter the repository URL: `https://github.com/usera0519/ha-haipower-cloud`
-4. Set the Category to **Integration**.
-5. Click **Download**, then restart Home Assistant.
+1. Open Home Assistant $\rightarrow$ **HACS** $\rightarrow$ **Integrations**.
+2. Click the top-right menu and choose **Custom repositories**.
+3. Add `https://github.com/usera0519/ha-haipower-cloud` with category **Integration**.
+4. Click **Download**, then restart Home Assistant.
 
 ### Method 2: Manual Installation
 1. Download `ha-haipower-cloud.zip` from the latest release.
-2. Unpack the zip file into your Home Assistant installation folder under:
+2. Unpack into your Home Assistant directory under:
    ```text
    /config/custom_components/haipower_cloud/
    ```
@@ -138,56 +89,13 @@ $$\text{Password} = \text{"ah"} + \text{YYYYMMDD}$$
 
 ---
 
-## ⚙️ Setup & Configuration
+## ⚙️ Configuration & Options
 
-1. In Home Assistant, go to **Settings** $\rightarrow$ **Devices & Services**.
-2. Click **Add Integration** and search for **HaiPower Cloud**.
-3. **Step 1:** Enter your email and password for the HaiPower platform (`eu.aohaidigitalpower.com`).
-4. **Step 2:** Select your inverter from the discovered devices dropdown and assign your preferred friendly name (e.g. *Sandisolar Inverter*).
-5. Submit the form—all sensors, switches, numbers, and selectors will be initialized immediately.
-
----
-
-## 🛠️ Fault & Warning Reference Table
-
-| Code | Type | Description |
-|---|---|---|
-| **0** | All | Normal / No fault / No warning |
-| **103** | Fault | Inverter DC offset too high |
-| **105** | Fault | Bypass AC output overloaded |
-| **200** | Fault | Off-grid output voltage too low |
-| **201** | Fault | Off-grid output voltage too high |
-| **202** | Fault | Off-grid output short circuit |
-| **203** | Fault | Off-grid output overloaded |
-| **204** | Fault | Abnormal off-grid DC component offset |
-| **301** | Fault | Battery open circuit |
-| **305** | Fault | Battery overvoltage |
-| **306** | Fault | Battery overcurrent |
-| **307** | Fault | Battery communication fault |
-| **308** | Fault | BMS fault |
-| **400** | Fault | PV overvoltage |
-| **403** | Fault | PV short circuit |
-| **404** | Fault | PV reverse connection |
-| **500** | Fault | Abnormal BUS voltage |
-| **501** | Fault | Abnormal BUS voltage sampling |
-| **502** | Fault | Abnormal internal device communication |
-| **505** | Fault | Abnormal temperature sensor connection |
-| **506** | Fault | Device over-temperature |
-| **507** | Fault | Abnormal relay |
-| **509** | Fault | Anti-counter-current output timeout |
-| **510** | Fault | Mismatched software version |
-| **511** | Fault | Fan fault |
-| **513** | Fault | Parallel abnormality |
-| **103** | Warning | Grid unavailable |
-| **104** | Warning | Overrange voltage of grid |
-| **105** | Warning | Overrange frequency of grid |
-| **106** | Warning | No output voltage from generator |
-| **107** | Warning | Overrange output voltage of generator |
-| **108** | Warning | Overrange output frequency of generator |
-| **302** | Warning | Low battery |
-| **304** | Warning | Abnormal BMS information |
-| **305** | Warning | Low battery voltage alarm |
-| **502** | Warning | Abnormal memory reading and writing |
+1. In Home Assistant, go to **Settings** $\rightarrow$ **Devices & Services** $\rightarrow$ **Add Integration**.
+2. Search for **HaiPower Cloud**.
+3. Enter your account email and password for `eu.aohaidigitalpower.com`.
+4. Select your inverter (DSN) and choose between **Full** or **Basic** entity mode.
+5. To adjust settings later (change entity mode or polling interval 10–300s), click **Configure** on the integration card.
 
 ---
 

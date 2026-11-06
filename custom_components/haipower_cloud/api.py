@@ -188,3 +188,33 @@ class AohaiApiClient:
             return True
         except requests.RequestException as err:
             raise AohaiApiError(f"Failed to set parameter for {dsn}: {err}") from err
+
+    def set_one_register(self, csn, addr, register, value):
+        """Set a single register on the inverter using form-urlencoded data.
+        
+        Used for special hardware calibration commands like CT Calibration (reg 96, val 1)
+        and CT Detection (reg 96, val 2).
+        """
+        self._ensure_authenticated()
+        try:
+            payload = {
+                "csn": str(csn),
+                "addr": int(addr),
+                "register": int(register),
+                "value": int(value),
+            }
+            url = f"{BASE_URL}/view/hard/setOneRegister"
+            res = self.session.post(url, data=payload, timeout=15)
+            data = res.json()
+            if data.get("code") in (401, 501):
+                self.login()
+                res = self.session.post(url, data=payload, timeout=15)
+                data = res.json()
+
+            if data.get("code") != 200:
+                raise AohaiApiError(f"Register command failed: {data.get('msg', 'Unknown error')}")
+
+            _LOGGER.info("Set register %s=%s successful for CSN %s", register, value, csn)
+            return True
+        except requests.RequestException as err:
+            raise AohaiApiError(f"Failed to set register {register} for {csn}: {err}") from err

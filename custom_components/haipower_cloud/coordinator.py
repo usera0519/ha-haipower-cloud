@@ -212,3 +212,16 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             self._add_log(f"Inverter rejected parameter: {key_value_list}")
         return success
+
+    async def async_set_register(self, register: int, value: int) -> bool:
+        """Send register command to inverter (e.g. CT Calibration/Detection)."""
+        self._add_log(f"Sending register command to inverter: reg {register}={value}")
+        success = await self.hass.async_add_executor_job(
+            self.client.set_one_register, self.csn, self.addr, register, value
+        )
+        if success:
+            self._add_log(f"Register {register}={value} executed successfully.")
+            await self.async_request_refresh()
+        else:
+            self._add_log(f"Inverter rejected register {register}={value}.")
+        return success

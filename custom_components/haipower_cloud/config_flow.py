@@ -140,14 +140,7 @@ class AohaiOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options for HaiPower Cloud integration."""
 
     async def async_step_init(self, user_input=None):
-        """Show options menu allowing selection between settings and cloud diagnostic logs."""
-        return self.async_show_menu(
-            step_id="init",
-            menu_options=["settings", "logs"],
-        )
-
-    async def async_step_settings(self, user_input=None):
-        """Manage integration settings (Entity Mode and Polling Interval)."""
+        """Manage integration options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
@@ -173,20 +166,6 @@ class AohaiOptionsFlowHandler(config_entries.OptionsFlow):
         })
 
         return self.async_show_form(
-            step_id="settings",
+            step_id="init",
             data_schema=schema,
-        )
-
-    async def async_step_logs(self, user_input=None):
-        """View recent cloud diagnostic events."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=self.config_entry.options)
-
-        coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
-        recent_logs_text = coordinator.get_recent_logs_formatted() if coordinator else "No cloud events recorded yet."
-
-        return self.async_show_form(
-            step_id="logs",
-            data_schema=vol.Schema({}),
-            description_placeholders={"logs": recent_logs_text},
         )
