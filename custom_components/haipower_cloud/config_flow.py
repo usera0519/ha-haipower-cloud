@@ -1,4 +1,4 @@
-"""Config flow for Aohai HaiPower / Sandisolar integration."""
+"""Config flow for HaiPower Cloud / Sandisolar integration."""
 import logging
 import voluptuous as vol
 
@@ -15,13 +15,16 @@ from .const import (
     CONF_DEVICE_NAME,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
+    CONF_ENTITY_MODE,
+    ENTITY_MODE_FULL,
+    ENTITY_MODE_BASIC,
 )
 from .api import AohaiApiClient, AohaiAuthError, AohaiApiError
 
 _LOGGER = logging.getLogger(__name__)
 
 class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Aohai HaiPower."""
+    """Handle a config flow for HaiPower Cloud."""
 
     VERSION = 1
 
@@ -67,13 +70,14 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     async def async_step_device(self, user_input=None):
-        """Handle device selection and custom naming."""
+        """Handle device selection, entity mode, and custom naming."""
         errors = {}
 
         if user_input is not None:
             selected_dsn = user_input[CONF_DSN]
             custom_name = user_input.get(CONF_DEVICE_NAME) or f"Inverter {selected_dsn}"
             scan_interval = user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            entity_mode = user_input.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL)
 
             selected_dev = next((d for d in self._devices if d.get("dsn") == selected_dsn), None)
 
@@ -96,6 +100,7 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "model_name": model_name,
                         "addr": addr,
                         CONF_SCAN_INTERVAL: scan_interval,
+                        CONF_ENTITY_MODE: entity_mode,
                     },
                 )
 
@@ -104,14 +109,19 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             for d in self._devices
         }
 
-        # Pick default DSN and default name
+        mode_options = {
+            ENTITY_MODE_FULL: "Pełny (Wszystkie czujniki, baterie BMS, kalkulacje ETA/AVG i sterowanie)",
+            ENTITY_MODE_BASIC: "Podstawowy (Tylko dane do Energy Dashboard, moce, napięcia, status, błędy - bez sterowania)",
+        }
+
         default_dsn = self._devices[0].get("dsn") if self._devices else ""
         default_model = self._devices[0].get("typeName", "Sandisolar SD-PRO-EU 6.5K") if self._devices else "Sandisolar"
-        default_title = f"{default_model} ({default_dsn})" if default_dsn else "Sandisolar Inverter"
+        default_title = f"{default_model} ({default_dsn})" if default_dsn else "HaiPower Cloud Inverter"
 
         schema = vol.Schema({
             vol.Required(CONF_DSN, default=default_dsn): vol.In(device_options),
             vol.Required(CONF_DEVICE_NAME, default=default_title): str,
+            vol.Required(CONF_ENTITY_MODE, default=ENTITY_MODE_FULL): vol.In(mode_options),
             vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
                 vol.Coerce(int), vol.Clamp(min=10, max=300)
             ),
@@ -122,16 +132,12 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        """Get the options flow handler."""
-        return AohaiOptionsFlowHandler(config_entry)
+        """Get the options flow handler without arguments (fixes Home Assistant 500 error)."""
+        return AohaiOptionsFlowHandler()
 
 
 class AohaiOptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle options for Aohai integration."""
-
-    def __init__(self, config_entry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
+    """Handle options for HaiPower Cloud integration."""
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
@@ -142,11 +148,29 @@ class AohaiOptionsFlowHandler(config_entries.OptionsFlow):
             CONF_SCAN_INTERVAL,
             self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         )
+        current_mode = self.config_entry.options.get(
+            CONF_ENTITY_MODE,
+            self.config_entry.data.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL)
+        )
+
+        mode_options = {
+            ENTITY_MODE_FULL: "Pełny (Wszystkie czujniki, baterie BMS, kalkulacje ETA/AVG i sterowanie)",
+            ENTITY_MODE_BASIC: "Podstawowy (Tylko dane do Energy Dashboard, moce, napięcia, status, błędy - bez sterowania)",
+        }
+
+        # Retrieve recent logs from coordinator if available
+        coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        recent_logs_text = coordinator.get_recent_logs_formatted() if coordinator else "Brak aktywnych logów."
 
         schema = vol.Schema({
+            vol.Required(CONF_ENTITY_MODE, default=current_mode): vol.In(mode_options),
             vol.Optional(CONF_SCAN_INTERVAL, default=current_interval): vol.All(
                 vol.Coerce(int), vol.Clamp(min=10, max=300)
             ),
         })
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            description_placeholders={"recent_logs": recent_logs_text},
+        )

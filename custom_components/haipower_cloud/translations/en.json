@@ -10,12 +10,13 @@
         }
       },
       "device": {
-        "title": "HaiPower Cloud - Select Inverter & Configure",
-        "description": "Found inverters associated with your account. Select your inverter and assign a custom name:",
+        "title": "HaiPower Cloud - Select Inverter & Entity Mode",
+        "description": "Found inverters associated with your account. Select your inverter, assign a custom name, and select entity mode:",
         "data": {
-          "dsn": "Select Inverter",
-          "device_name": "Custom Device Name (e.g. Sandisolar Inverter)",
-          "scan_interval": "Data polling interval in seconds (default: 30s)"
+          "dsn": "Select Inverter (DSN)",
+          "device_name": "Custom Inverter Name",
+          "entity_mode": "Entity Mode (Full vs Basic)",
+          "scan_interval": "Cloud polling interval in seconds (default: 30s)"
         }
       }
     },
@@ -33,8 +34,10 @@
     "step": {
       "init": {
         "title": "HaiPower Cloud Inverter Options",
+        "description": "Configure entity mode, cloud scan interval and inspect recent cloud events.\n\n**Recent Cloud Logs:**\n{recent_logs}",
         "data": {
-          "scan_interval": "Data polling interval in seconds (10 - 300)"
+          "entity_mode": "Entity Mode",
+          "scan_interval": "Cloud polling interval in seconds (10 - 300)"
         }
       }
     }

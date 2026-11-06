@@ -1,4 +1,4 @@
-"""Sensor platform for Aohai HaiPower / Sandisolar integration."""
+"""Sensor platform for HaiPower Cloud / Sandisolar integration."""
 import logging
 from dataclasses import dataclass
 from typing import Callable, Any
@@ -31,6 +31,9 @@ from .const import (
     BATTERY_TYPE_MAP,
     BATTERY_PRIORITY_MAP,
     OPERATION_MODE_MAP,
+    CONF_ENTITY_MODE,
+    ENTITY_MODE_BASIC,
+    ENTITY_MODE_FULL,
 )
 from .coordinator import AohaiDataUpdateCoordinator
 
@@ -40,12 +43,14 @@ _LOGGER = logging.getLogger(__name__)
 class AohaiSensorEntityDescription(SensorEntityDescription):
     """Class describing Aohai sensor entities."""
     value_fn: Callable[[dict[str, Any]], Any] = None
+    extra_attrs_fn: Callable[[dict[str, Any]], dict[str, Any]] = None
+    is_basic: bool = False
 
 
 # Helper lookup functions
 def _get_status(data: dict) -> str:
     inv_info = data.get("details", {}).get("invInfo", {})
-    return inv_info.get("inverterStatus2") or data.get("telemetry", {}).get("status2") or "Unknown"
+    return inv_info.get("inverterStatus2") or data.get("telemetry", {}).get("status2") or "Normal"
 
 def _get_op_mode(data: dict) -> str:
     code = data.get("details", {}).get("invInfo", {}).get("periodpower")
@@ -53,7 +58,7 @@ def _get_op_mode(data: dict) -> str:
         code = data.get("params", {}).get("periodpower")
     if code is None:
         code = data.get("telemetry", {}).get("periodpower")
-    return OPERATION_MODE_MAP.get(code, f"Mode {code}" if code is not None else "Unknown")
+    return OPERATION_MODE_MAP.get(code, f"Mode {code}" if code is not None else "Normal")
 
 def _get_fault_code(data: dict) -> str:
     inv_info = data.get("details", {}).get("invInfo", {})
@@ -81,7 +86,7 @@ def _get_battery_type(data: dict) -> str:
     btype = data.get("details", {}).get("invData", {}).get("batteryType")
     if btype is None:
         btype = data.get("telemetry", {}).get("batteryType")
-    return BATTERY_TYPE_MAP.get(btype, f"Type {btype}" if btype is not None else "Unknown")
+    return BATTERY_TYPE_MAP.get(btype, f"Type {btype}" if btype is not None else "Lithium Battery")
 
 def _get_battery_priority(data: dict) -> str:
     p = data.get("details", {}).get("invData", {}).get("priority")
@@ -95,505 +100,818 @@ def _get_battery_status(data: dict) -> str:
         pcharge_val = float(pcharge)
         pdischarge_val = float(pdischarge)
     except (ValueError, TypeError):
-        return "Standby"
-    if pcharge_val > 10.0:
-        return "Charging"
-    if pdischarge_val > 10.0:
-        return "Discharging"
-    return "Standby"
+        return "Standby (Czuwanie)"
+    if pcharge_val > 15.0:
+        return "Charging (Ładowanie)"
+    if pdischarge_val > 15.0:
+        return "Discharging (Rozładowywanie)"
+    return "Standby (Czuwanie)"
 
 
 SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
-    # 1. Real-Time Status & Operating Mode
+    # 1. Real-Time Status & Operating Mode (BASIC)
     # ==========================================
     AohaiSensorEntityDescription(
         key="inverter_status",
-        name="Inverter Status",
+        name="Inverter Status (Stan pracy falownika)",
         icon="mdi:information-outline",
         value_fn=_get_status,
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="operation_mode",
-        name="Operation Mode",
+        name="Operation Mode (Tryb pracy zasilania)",
         icon="mdi:tune-vertical",
         value_fn=_get_op_mode,
+        is_basic=True,
     ),
 
     # ==========================================
-    # 2. Diagnostic Codes & Descriptions
+    # 2. Diagnostic Codes & Descriptions (BASIC)
     # ==========================================
     AohaiSensorEntityDescription(
         key="fault_code",
-        name="Fault Code (Master/Slave)",
+        name="Fault Code (Kod błędu Master/Slave)",
         icon="mdi:alert-circle",
         value_fn=_get_fault_code,
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="fault_description",
-        name="Fault Description",
+        name="Fault Description (Opis błędu)",
         icon="mdi:alert",
         value_fn=_get_fault_desc,
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="warn_code",
-        name="Warn Code (Master/Slave)",
+        name="Warn Code (Kod ostrzeżenia Master/Slave)",
         icon="mdi:alert-box-outline",
         value_fn=_get_warn_code,
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="warn_description",
-        name="Warn Description",
+        name="Warn Description (Opis ostrzeżenia)",
         icon="mdi:bell-alert-outline",
         value_fn=_get_warn_desc,
+        is_basic=True,
     ),
 
     # ==========================================
-    # 3. Device Basic Information (Detailed Info Tab)
+    # 3. Device Basic Information
     # ==========================================
     AohaiSensorEntityDescription(
         key="device_serial_number",
-        name="Device Serial Number",
+        name="Device Serial Number (Numer seryjny DSN)",
         icon="mdi:barcode",
         value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("dsn") or data.get("telemetry", {}).get("dsn") or "Unknown",
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="data_logger_number",
-        name="Data Logger Number",
-        icon="mdi:wifi-marker",
+        name="Data Logger CSN (Numer seryjny Wi-Fi)",
+        icon="mdi:wifi",
         value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("csn") or data.get("telemetry", {}).get("csn") or "Unknown",
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="device_model",
-        name="Device Model",
+        name="Device Model (Model urządzenia)",
         icon="mdi:solar-power",
-        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("deviceType2") or "AO-6KSL-G3",
+        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("module") or "SD-PRO-EU 6.5K",
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="system_time",
-        name="System Time",
-        icon="mdi:clock-digital",
-        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("sysTime") or data.get("params", {}).get("sysTime") or "Unknown",
+        name="System Time (Czas systemowy falownika)",
+        icon="mdi:clock-outline",
+        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("sysTime") or data.get("telemetry", {}).get("lastTime") or "Unknown",
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="hardware_mode_code",
         name="Hardware Mode Code",
-        icon="mdi:identifier",
-        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("module") or "Unknown",
+        icon="mdi:chip",
+        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("deviceType2", "Unknown"),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="arm_version",
         name="ARM Software Version",
-        icon="mdi:cpu-32-bit",
+        icon="mdi:memory",
         value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("m3versionName") or "Unknown",
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="dsp_version",
         name="DSP Software Version",
-        icon="mdi:chip",
-        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("fwName") or "Unknown",
+        icon="mdi:cpu-64-bit",
+        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("fwversion") or "Unknown",
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="firmware_version",
         name="Firmware Version",
         icon="mdi:tag-outline",
-        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("fwversion") or "Unknown",
+        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("fwName") or "Unknown",
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="total_work_time",
-        name="Total Work Time",
+        name="Total Work Time (Łączny czas pracy)",
+        native_unit_of_measurement="h",
         icon="mdi:timer-outline",
-        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("timeTotal2") or "Unknown",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("timeTotal2", 0),
+        is_basic=False,
     ),
 
     # ==========================================
-    # 4. Battery Detailed Information
+    # 4. Battery Parameters & Telemetry
     # ==========================================
     AohaiSensorEntityDescription(
         key="battery_type",
-        name="Battery Type",
+        name="Battery Type (Typ baterii)",
         icon="mdi:battery-heart-variant",
         value_fn=_get_battery_type,
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_priority",
-        name="Battery Priority",
-        icon="mdi:priority-high",
+        name="Battery Priority (Priorytet baterii)",
+        icon="mdi:battery-charging-outline",
         value_fn=_get_battery_priority,
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_status",
-        name="Battery Status",
+        name="Battery Status (Status ładowania/rozładowania)",
         icon="mdi:battery-sync",
         value_fn=_get_battery_status,
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="battery_voltage",
-        name="Battery Voltage",
+        name="Battery Voltage (Napięcie baterii)",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("vbat") if data.get("details", {}).get("invData", {}).get("vbat") is not None else data.get("telemetry", {}).get("vbat", 0.0),
+        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("vbat") or data.get("telemetry", {}).get("vbat", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="battery_current",
-        name="Battery Current",
+        name="Battery Current (Prąd baterii)",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSBatteryCurr") if data.get("details", {}).get("invData", {}).get("bmSBatteryCurr") is not None else data.get("telemetry", {}).get("bmSBatteryCurr", 0.0),
+        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSBatteryCurr") or data.get("telemetry", {}).get("bmSBatteryCurr", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="battery_max_charge_curr",
-        name="Max Charge Current",
+        name="Max Charge Current Allowed (Maks. prąd ładowania BMS)",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:current-dc",
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSMaxChargeCurr", 0.0),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_max_discharge_curr",
-        name="Max Discharge Current",
+        name="Max Discharge Current Allowed (Maks. prąd rozładowania BMS)",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:current-dc",
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSMaxDischargeCurr", 0.0),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_min_cell_voltage",
-        name="Min Cell Voltage",
-        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
-        device_class=SensorDeviceClass.VOLTAGE,
+        name="Min Cell Voltage (Minimalne napięcie ogniwa)",
+        native_unit_of_measurement="mV",
+        icon="mdi:battery-minus",
         state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:battery-arrow-down",
-        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("minCellVol", 0.0),
+        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("minCellVol", 0),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_max_cell_voltage",
-        name="Max Cell Voltage",
-        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
-        device_class=SensorDeviceClass.VOLTAGE,
+        name="Max Cell Voltage (Maksymalne napięcie ogniwa)",
+        native_unit_of_measurement="mV",
+        icon="mdi:battery-plus",
         state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:battery-arrow-up",
-        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("maxCellVol", 0.0),
+        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("maxCellVol", 0),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_temperature",
-        name="Battery Temperature",
+        name="Battery Temperature (Temperatura baterii)",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSBatteryTemp", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="battery_rated_capacity",
-        name="Rated Capacity",
+        name="Battery Rated Capacity (Pojemność znamionowa)",
         native_unit_of_measurement="Ah",
-        state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:battery-standard",
+        icon="mdi:battery-high",
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSGaugeFCC", 0.0),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_charging_voltage",
-        name="Charging Voltage",
+        name="Battery Charging Voltage (Napięcie zadane BMS)",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:flash-outline",
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSConstantVolt", 0.0),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_module_count",
-        name="Number of Battery Module",
-        icon="mdi:counter",
-        state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("moduleNum", 0),
+        name="Number of Battery Modules (Liczba modułów baterii)",
+        icon="mdi:view-grid",
+        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("moduleNum", 1),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_cell_count",
-        name="Number of Battery Cells",
-        icon="mdi:counter",
-        state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("cellNum", 0),
+        name="Number of Battery Cells (Liczba ogniw baterii)",
+        icon="mdi:view-column",
+        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("cellNum", 16),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="battery_soc",
-        name="Battery SOC",
+        name="Battery SOC (Poziom naładowania baterii)",
         native_unit_of_measurement=PERCENTAGE,
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("soC") if data.get("details", {}).get("invData", {}).get("soC") is not None else data.get("telemetry", {}).get("soc", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="battery_soh",
-        name="Battery SOH",
+        name="Battery SOH (Kondycja baterii)",
         native_unit_of_measurement=PERCENTAGE,
-        icon="mdi:battery-heart-variant",
+        icon="mdi:heart-pulse",
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSSOH", 0.0),
+        value_fn=lambda data: data.get("details", {}).get("invData", {}).get("bmSSOH", 100.0),
+        is_basic=False,
     ),
 
     # ==========================================
-    # 5. Real-Time Power Measurements
+    # 5. Real-Time Powers (Energy Dashboard & Flow) (BASIC)
     # ==========================================
     AohaiSensorEntityDescription(
         key="pv_total_power",
-        name="PV Total Power",
+        name="PV Total Power (Moc łączna fotowoltaiki)",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.get("telemetry", {}).get("ppvAll", 0.0),
+        value_fn=lambda data: data.get("telemetry", {}).get("pvPower") or data.get("telemetry", {}).get("ppvAll", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="house_load_power",
-        name="House Load Power",
+        name="House Load Power (Moc pobierana przez dom)",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.get("telemetry", {}).get("loadPower", 0.0),
+        value_fn=lambda data: data.get("telemetry", {}).get("loadPower") or data.get("telemetry", {}).get("plocalLoadtotal", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="eps_output_power",
-        name="EPS Backup Load Power",
+        name="EPS Backup Load Power (Moc wyjścia awaryjnego EPS)",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.get("telemetry", {}).get("epsPower", 0.0),
+        value_fn=lambda data: data.get("telemetry", {}).get("epsPower") or data.get("telemetry", {}).get("epSActPac1", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="battery_charging_power",
-        name="Battery Charging Power",
+        name="Battery Charging Power (Moc ładowania baterii)",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("telemetry", {}).get("pcharge", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="battery_discharging_power",
-        name="Battery Discharging Power",
+        name="Battery Discharging Power (Moc rozładowania baterii)",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("telemetry", {}).get("pdischarge", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="grid_active_power",
-        name="Grid Active Power",
+        name="Grid Active Power (Moc czynna sieci AC)",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("telemetry", {}).get("pactogridtotal", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="extra_ac_power_to_grid",
-        name="Grid Export Power",
+        name="Grid Export Power (Moc oddawana do sieci)",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("telemetry", {}).get("extraACPowertogrid", 0.0),
+        is_basic=True,
+    ),
+    AohaiSensorEntityDescription(
+        key="generator_active_power",
+        name="Generator Active Power (Moc czynna agregatu)",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("telemetry", {}).get("genAcivePower", 0.0),
+        is_basic=True,
+    ),
+    AohaiSensorEntityDescription(
+        key="generator_phase_r_power",
+        name="Generator Phase R Power (Moc fazy R agregatu)",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("telemetry", {}).get("genAciveR", 0.0),
+        is_basic=False,
     ),
 
     # ==========================================
-    # 6. Solar String MPPT Parameters
+    # 6. Voltages, Currents & Frequency
     # ==========================================
     AohaiSensorEntityDescription(
         key="pv1_voltage",
-        name="PV1 Voltage",
+        name="PV1 Voltage (Napięcie stringu PV1)",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("telemetry", {}).get("vpv1", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="pv1_power",
-        name="PV1 Power",
+        name="PV1 Power (Moc stringu PV1)",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("telemetry", {}).get("ppv1", 0.0),
+        is_basic=True,
+    ),
+    AohaiSensorEntityDescription(
+        key="pv1_current",
+        name="PV1 Current (Prąd stringu PV1)",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("pv1_current", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="pv2_voltage",
-        name="PV2 Voltage",
+        name="PV2 Voltage (Napięcie stringu PV2)",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("telemetry", {}).get("vpv2", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="pv2_power",
-        name="PV2 Power",
+        name="PV2 Power (Moc stringu PV2)",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("telemetry", {}).get("ppv2", 0.0),
+        is_basic=True,
     ),
-
-    # ==========================================
-    # 7. AC Grid & Inverter Electrical Measurements
-    # ==========================================
+    AohaiSensorEntityDescription(
+        key="pv2_current",
+        name="PV2 Current (Prąd stringu PV2)",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("pv2_current", 0.0),
+        is_basic=True,
+    ),
     AohaiSensorEntityDescription(
         key="ac_voltage_phase_r",
-        name="Grid Voltage (Phase R)",
+        name="Grid Voltage Phase R (Napięcie sieci faza R)",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.get("telemetry", {}).get("vac1", 0.0),
+        is_basic=True,
+    ),
+    AohaiSensorEntityDescription(
+        key="grid_current",
+        name="Grid Current (Prąd sieci AC)",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("grid_current", 0.0),
+        is_basic=True,
+    ),
+    AohaiSensorEntityDescription(
+        key="eps_current",
+        name="EPS Current (Prąd wyjścia awaryjnego EPS)",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("eps_current", 0.0),
+        is_basic=True,
+    ),
+    AohaiSensorEntityDescription(
+        key="eps_apparent_power",
+        name="EPS Apparent Power (Moc pozorna EPS)",
+        native_unit_of_measurement="VA",
+        device_class=SensorDeviceClass.APPARENT_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("eps_apparent_power", 0.0),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="grid_frequency",
-        name="Grid Frequency",
+        name="Grid Frequency (Częstotliwość sieci)",
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data.get("telemetry", {}).get("fac", 0.0),
+        value_fn=lambda data: data.get("telemetry", {}).get("fac", 50.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="dc_bus_voltage",
-        name="DC Bus Voltage",
+        name="DC Bus Voltage (Napięcie szyny DC)",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        icon="mdi:sine-wave",
         value_fn=lambda data: data.get("details", {}).get("invData", {}).get("dspBusTotalVolt", 0.0),
+        is_basic=False,
     ),
 
     # ==========================================
-    # 8. Home Assistant Energy Dashboard Entities
+    # 7. Energy Statistics (Home Assistant Energy Dashboard) (BASIC)
     # ==========================================
     AohaiSensorEntityDescription(
         key="daily_pv_energy",
-        name="Daily PV Generation Energy",
+        name="Daily PV Energy (Produkcja PV dzisiaj)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("epVAllToday", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="total_pv_energy",
-        name="Total PV Generation Energy",
+        name="Total PV Energy (Produkcja PV łączna)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("epvTotal", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="daily_load_energy",
-        name="Daily Load Consumption Energy",
+        name="Daily Load Energy (Zużycie domu dzisiaj)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("eloadToday", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="total_load_energy",
-        name="Total Load Consumption Energy",
+        name="Total Load Energy (Zużycie domu łączne)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("eloadTotal", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="daily_grid_in_energy",
-        name="Daily Grid Energy Import",
+        name="Daily Grid Energy Import (Pobór z sieci dzisiaj)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("efromGridToday", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="total_grid_in_energy",
-        name="Total Grid Energy Import",
+        name="Total Grid Energy Import (Pobór z sieci łączny)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("efromGridTotal", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="daily_grid_out_energy",
-        name="Daily Grid Energy Export",
+        name="Daily Grid Energy Export (Oddanie do sieci dzisiaj)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("etoGridToday", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="total_grid_out_energy",
-        name="Total Grid Energy Export",
+        name="Total Grid Energy Export (Oddanie do sieci łączne)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("etoGridTotal", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="daily_battery_charge_energy",
-        name="Daily Battery Charge Energy",
+        name="Daily Battery Charge Energy (Naładowano dzisiaj)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("echargeToday", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="daily_battery_discharge_energy",
-        name="Daily Battery Discharge Energy",
+        name="Daily Battery Discharge Energy (Rozładowano dzisiaj)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("edischargeToday", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="total_battery_charge_energy",
-        name="Total Battery Charge Energy",
+        name="Total Battery Charge Energy (Naładowano łącznie)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("echargeTotal", 0.0),
+        is_basic=True,
     ),
     AohaiSensorEntityDescription(
         key="total_battery_discharge_energy",
-        name="Total Battery Discharge Energy",
+        name="Total Battery Discharge Energy (Rozładowano łącznie)",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("edischargeTotal", 0.0),
+        is_basic=True,
     ),
 
     # ==========================================
-    # 9. Environmental Savings & Timestamp
+    # 8. Extended Energy & Self-Consumption Analytics
+    # ==========================================
+    AohaiSensorEntityDescription(
+        key="self_consumption_today",
+        name="Self-Consumption Today (Autokonsumpcja dzisiaj)",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.get("telemetry", {}).get("eselfToday", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="self_consumption_total",
+        name="Self-Consumption Total (Autokonsumpcja łączna)",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.get("telemetry", {}).get("eselfTotal", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="input_energy_today",
+        name="Total Energy Input Today (Energia wprowadzona dzisiaj)",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.get("telemetry", {}).get("inToday", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="input_energy_total",
+        name="Total Energy Input Total (Energia wprowadzona łączna)",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.get("telemetry", {}).get("inTotal", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="solar_direct_to_load_today",
+        name="Solar to Load Today (Bezpośrednie zasilanie z PV dzisiaj)",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.get("telemetry", {}).get("deselfToLoadTodayEE", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="solar_direct_to_load_total",
+        name="Solar to Load Total (Bezpośrednie zasilanie z PV łączne)",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.get("telemetry", {}).get("deselfToLoadTotalEE", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="grid_direct_to_load_today",
+        name="Grid to Load Today (Bezpośrednie zasilanie z sieci dzisiaj)",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.get("telemetry", {}).get("degridToLoadTodayEE", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="grid_direct_to_load_total",
+        name="Grid to Load Total (Bezpośrednie zasilanie z sieci łączne)",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.get("telemetry", {}).get("degridToLoadTotalEE", 0.0),
+        is_basic=False,
+    ),
+
+    # ==========================================
+    # 9. Smart Battery Analytics & Moving Averages (AVG & ETA)
+    # ==========================================
+    AohaiSensorEntityDescription(
+        key="battery_charge_eta",
+        name="Battery Charge ETA (Szacowany czas pełnego naładowania)",
+        icon="mdi:battery-clock",
+        value_fn=lambda data: data.get("calculated", {}).get("battery_charge_eta", "Standby"),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="battery_soc_speed",
+        name="Battery SOC Speed (Tempo zmiany naładowania)",
+        native_unit_of_measurement="%/h",
+        icon="mdi:speedometer",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("battery_soc_speed", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="battery_power_speed",
+        name="Battery Power Speed (Dynamika mocy baterii)",
+        native_unit_of_measurement="W/h",
+        icon="mdi:chart-line",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("battery_power_speed", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="avg_pv_power",
+        name="AVG PV Power (Średnia krocząca mocy PV 5m)",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("avg_pv_power", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="avg_battery_power",
+        name="AVG Battery Power (Średnia krocząca mocy baterii 5m)",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("avg_battery_power", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="avg_grid_power",
+        name="AVG Grid Power (Średnia krocząca mocy sieci 5m)",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("avg_grid_power", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="avg_eps_load",
+        name="AVG EPS Load (Średnia krocząca obciążenia EPS 5m)",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("avg_eps_load", 0.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="avg_house_load",
+        name="AVG House Load (Średnia krocząca poboru domu 5m)",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("calculated", {}).get("avg_house_load", 0.0),
+        is_basic=False,
+    ),
+
+    # ==========================================
+    # 10. Inverter Status & Advanced Settings Monitors
+    # ==========================================
+    AohaiSensorEntityDescription(
+        key="max_inverter_power",
+        name="Inverter Max Output Power (Moc znamionowa inwertera)",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        value_fn=lambda data: data.get("params", {}).get("maxInvPower", 6000.0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="afci_value",
+        name="AFCI Detector Value (Detektor zwarć łukowych AFCI)",
+        icon="mdi:shield-flash",
+        value_fn=lambda data: data.get("params", {}).get("afCIValue2", 0),
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="ct_mode_status",
+        name="CT Mode Status (Status trybu przekładnika CT)",
+        icon="mdi:current-ac",
+        value_fn=lambda data: "CT Enabled" if data.get("params", {}).get("ctMode") == 1 else "Meter / Disabled",
+        is_basic=False,
+    ),
+    AohaiSensorEntityDescription(
+        key="ct_ratio_status",
+        name="CT Ratio Status (Bieżąca przekładnia CT)",
+        icon="mdi:numeric",
+        value_fn=lambda data: data.get("params", {}).get("ctRatio", 0),
+        is_basic=False,
+    ),
+
+    # ==========================================
+    # 11. Environmental Savings & Diagnostics Log
     # ==========================================
     AohaiSensorEntityDescription(
         key="co2_reduction",
-        name="CO2 Reduction Total",
+        name="CO2 Reduction Total (Ograniczenie emisji CO2)",
         native_unit_of_measurement="kg",
         icon="mdi:molecule-co2",
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("co2Total", 0.0),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="tree_equivalent",
-        name="Equivalent Trees Planted",
+        name="Equivalent Trees Planted (Odpowiednik posadzonych drzew)",
         icon="mdi:tree",
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("telemetry", {}).get("treeTotal", 0.0),
+        is_basic=False,
     ),
     AohaiSensorEntityDescription(
         key="last_telemetry_time",
-        name="Last Telemetry Timestamp",
+        name="Last Telemetry Timestamp (Czas ostatniej telemetrii)",
         icon="mdi:clock-check-outline",
         value_fn=lambda data: data.get("telemetry", {}).get("lastTime") or "Unknown",
+        is_basic=True,
+    ),
+    AohaiSensorEntityDescription(
+        key="cloud_recent_logs",
+        name="Cloud Diagnostic Logs (Ostatnie zdarzenia chmury)",
+        icon="mdi:math-log",
+        value_fn=lambda data: data.get("telemetry", {}).get("status2") or "Połączono z chmurą",
+        extra_attrs_fn=lambda coordinator: {"recent_logs": list(coordinator.recent_logs)},
+        is_basic=True,
     ),
 )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    """Set up Aohai sensors based on a config entry."""
+    """Set up HaiPower sensors based on config entry and entity mode."""
     coordinator: AohaiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entities = [AohaiSensor(coordinator, description) for description in SENSOR_TYPES]
+    entity_mode = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL))
+
+    if entity_mode == ENTITY_MODE_BASIC:
+        descriptions = [d for d in SENSOR_TYPES if d.is_basic]
+        _LOGGER.info("Setting up %d BASIC sensors for %s", len(descriptions), coordinator.dsn)
+    else:
+        descriptions = SENSOR_TYPES
+        _LOGGER.info("Setting up %d FULL sensors for %s", len(descriptions), coordinator.dsn)
+
+    entities = [AohaiSensor(coordinator, description) for description in descriptions]
     async_add_entities(entities)
 
+
 class AohaiSensor(CoordinatorEntity[AohaiDataUpdateCoordinator], SensorEntity):
-    """Representation of an Aohai Inverter sensor."""
+    """Representation of a HaiPower Inverter sensor."""
 
     entity_description: AohaiSensorEntityDescription
     _attr_has_entity_name = True
@@ -621,3 +939,10 @@ class AohaiSensor(CoordinatorEntity[AohaiDataUpdateCoordinator], SensorEntity):
         if self.coordinator.data is None:
             return None
         return self.entity_description.value_fn(self.coordinator.data)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return entity specific state attributes."""
+        if self.entity_description.extra_attrs_fn:
+            return self.entity_description.extra_attrs_fn(self.coordinator)
+        return None

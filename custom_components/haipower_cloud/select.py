@@ -1,4 +1,4 @@
-"""Select platform for Aohai HaiPower / Sandisolar integration."""
+"""Select platform for HaiPower Cloud / Sandisolar integration."""
 import logging
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
@@ -18,25 +18,29 @@ from .const import (
     AC_INPUT_OPTIONS,
     AC_INPUT_TO_VAL,
     VAL_TO_AC_INPUT,
+    GEN_MODE_OPTIONS,
+    GEN_MODE_TO_VAL,
+    VAL_TO_GEN_MODE,
 )
 from .coordinator import AohaiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    """Set up Aohai selects based on a config entry."""
+    """Set up HaiPower selects based on a config entry."""
     coordinator: AohaiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([
         AohaiPowerPrioritySelect(coordinator),
         AohaiChargingPrioritySelect(coordinator),
         AohaiAcInputModeSelect(coordinator),
+        AohaiGenPortModeSelect(coordinator),
     ])
 
 class AohaiPowerPrioritySelect(CoordinatorEntity[AohaiDataUpdateCoordinator], SelectEntity):
-    """Control power supply priority (SOL / UTI / SBU - Section 4.9.1)."""
+    """Control power supply priority (SOL / UTI / SBU)."""
 
     _attr_has_entity_name = True
-    _attr_name = "Power Supply Priority"
+    _attr_name = "Power Supply Priority (Priorytet zasilania odbiorników)"
     _attr_icon = "mdi:transmission-tower-export"
     _attr_options = POWER_PRIORITY_OPTIONS
 
@@ -70,10 +74,10 @@ class AohaiPowerPrioritySelect(CoordinatorEntity[AohaiDataUpdateCoordinator], Se
 
 
 class AohaiChargingPrioritySelect(CoordinatorEntity[AohaiDataUpdateCoordinator], SelectEntity):
-    """Control battery charging priority (CSO / SNU / OSS - Section 4.9.1)."""
+    """Control battery charging priority (CSO / SNU / OSO)."""
 
     _attr_has_entity_name = True
-    _attr_name = "Charging Priority"
+    _attr_name = "Charging Priority (Priorytet ładowania baterii)"
     _attr_icon = "mdi:battery-charging-wireless"
     _attr_options = CHARGING_PRIORITY_OPTIONS
 
@@ -105,10 +109,10 @@ class AohaiChargingPrioritySelect(CoordinatorEntity[AohaiDataUpdateCoordinator],
 
 
 class AohaiAcInputModeSelect(CoordinatorEntity[AohaiDataUpdateCoordinator], SelectEntity):
-    """Control AC Input Voltage Range (APL / UPS - Section 4.9.4)."""
+    """Control AC Input Voltage Range (APL / UPS)."""
 
     _attr_has_entity_name = True
-    _attr_name = "Grid Input Mode (Voltage Range)"
+    _attr_name = "Grid Input Voltage Range (Zakres napięcia wejściowego AC)"
     _attr_icon = "mdi:sine-wave"
     _attr_options = AC_INPUT_OPTIONS
 
@@ -137,3 +141,40 @@ class AohaiAcInputModeSelect(CoordinatorEntity[AohaiDataUpdateCoordinator], Sele
         val = AC_INPUT_TO_VAL[option]
         _LOGGER.info("Setting Grid Input Mode to %s (val=%s)", option, val)
         await self.coordinator.async_set_parameter([f"acInputType={val}"])
+
+
+class AohaiGenPortModeSelect(CoordinatorEntity[AohaiDataUpdateCoordinator], SelectEntity):
+    """Control GEN Port Working Mode (0=Generator, 1=Microinverter, 2=Smart Load)."""
+
+    _attr_has_entity_name = True
+    _attr_name = "GEN Port Work Mode (Tryb pracy portu generatora)"
+    _attr_icon = "mdi:generator-portable"
+    _attr_options = GEN_MODE_OPTIONS
+
+    def __init__(self, coordinator: AohaiDataUpdateCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.dsn}_gen_port_mode"
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self.coordinator.dsn)},
+            name=self.coordinator.device_name,
+            manufacturer="Sandisolar / Aohai Digital Power",
+            model=self.coordinator.model_name,
+            serial_number=self.coordinator.dsn,
+        )
+
+    @property
+    def current_option(self) -> str | None:
+        if not self.coordinator.data:
+            return None
+        val = self.coordinator.data.get("params", {}).get("genMode")
+        if val is None:
+            val = self.coordinator.data.get("telemetry", {}).get("genMode")
+        return VAL_TO_GEN_MODE.get(val)
+
+    async def async_select_option(self, option: str) -> None:
+        val = GEN_MODE_TO_VAL[option]
+        _LOGGER.info("Setting GEN Port Work Mode to %s (val=%s)", option, val)
+        await self.coordinator.async_set_parameter([f"genMode={val}"])
