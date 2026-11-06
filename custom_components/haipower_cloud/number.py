@@ -13,7 +13,16 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_ENTITY_MODE,
+    PROFILE_AUTO,
+    PROFILE_AO_GSA_PRO,
+    PROFILE_HTA_3P_HV,
+    PROFILE_FSF_COMPACT,
+    PROFILE_FULL,
+    get_effective_profile,
+)
 from .coordinator import AohaiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,6 +62,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricCurrent.AMPERE,
         "icon": "mdi:generator-portable",
         "scale": 100.0,
+        "no_compact": True,
     },
     {
         "key": "generator_input_power",
@@ -64,6 +74,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfPower.WATT,
         "icon": "mdi:engine",
         "scale": 1.0,
+        "no_compact": True,
     },
     {
         "key": "ct_current_ratio",
@@ -75,9 +86,10 @@ NUMBER_CONFIGS = [
         "unit": "",
         "icon": "mdi:numeric",
         "scale": 1.0,
+        "ct_clamp_only": True,
     },
 
-    # ---------------- Battery Voltages ----------------
+    # ---------------- Battery Voltages (48V Low Voltage Specific) ----------------
     {
         "key": "vbat_constant_charge",
         "name": "Battery Charging CV Voltage",
@@ -88,6 +100,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:battery-plus",
         "scale": 100.0,
+        "lv_only": True,
     },
     {
         "key": "vbat_floating_charge",
@@ -99,6 +112,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:battery-clock",
         "scale": 100.0,
+        "lv_only": True,
     },
     {
         "key": "bat2ac_volt",
@@ -110,6 +124,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:transmission-tower",
         "scale": 10.0,
+        "lv_only": True,
     },
     {
         "key": "ac2bat_volt",
@@ -121,6 +136,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:battery-arrow-up",
         "scale": 10.0,
+        "lv_only": True,
     },
     {
         "key": "vbat_stop_discharge",
@@ -132,6 +148,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:battery-alert",
         "scale": 100.0,
+        "lv_only": True,
     },
     {
         "key": "bat_undervolt_alarm",
@@ -143,6 +160,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:bell-alert",
         "scale": 10.0,
+        "lv_only": True,
     },
     {
         "key": "bat_lv_restart_volt",
@@ -154,6 +172,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:battery-sync",
         "scale": 10.0,
+        "lv_only": True,
     },
     {
         "key": "bat_need_charge_volt",
@@ -165,6 +184,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:battery-charging-wireless",
         "scale": 10.0,
+        "lv_only": True,
     },
     {
         "key": "bat_overvolt_disconnect",
@@ -176,6 +196,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:flash-alert",
         "scale": 10.0,
+        "lv_only": True,
     },
 
     # ---------------- Battery SOC Thresholds ----------------
@@ -246,6 +267,7 @@ NUMBER_CONFIGS = [
         "unit": PERCENTAGE,
         "icon": "mdi:power-plug-off",
         "scale": 1.0,
+        "smart_load_only": True,
     },
     {
         "key": "smart_load_cutoff_volt",
@@ -257,6 +279,8 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:battery-remove",
         "scale": 10.0,
+        "smart_load_only": True,
+        "lv_only": True,
     },
     {
         "key": "smart_load_recover_soc",
@@ -268,6 +292,7 @@ NUMBER_CONFIGS = [
         "unit": PERCENTAGE,
         "icon": "mdi:power-plug",
         "scale": 1.0,
+        "smart_load_only": True,
     },
     {
         "key": "smart_load_recover_volt",
@@ -279,6 +304,8 @@ NUMBER_CONFIGS = [
         "unit": UnitOfElectricPotential.VOLT,
         "icon": "mdi:battery-plus-variant",
         "scale": 10.0,
+        "smart_load_only": True,
+        "lv_only": True,
     },
 
     # ---------------- Grid & Inverter Power ----------------
@@ -307,9 +334,34 @@ NUMBER_CONFIGS = [
 ]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    """Set up HaiPower numbers based on a config entry."""
+    """Set up HaiPower numbers based on model profile."""
     coordinator: AohaiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entities = [AohaiGenericNumberEntity(coordinator, conf) for conf in NUMBER_CONFIGS]
+    cfg_profile = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
+    effective_profile = get_effective_profile(cfg_profile, coordinator.model_name)
+
+    filtered_configs = []
+    for conf in NUMBER_CONFIGS:
+        # In Full mode, include everything
+        if effective_profile == PROFILE_FULL:
+            filtered_configs.append(conf)
+            continue
+
+        # In AO-6KSL-G3 / GSA-PRO: has Smart Meter instead of physical CT clamp ratio
+        if effective_profile == PROFILE_AO_GSA_PRO and conf.get("ct_clamp_only"):
+            continue
+
+        # In High Voltage 3-Phase: exclude 48V LV specific thresholds
+        if effective_profile == PROFILE_HTA_3P_HV and conf.get("lv_only"):
+            continue
+
+        # In Compact FSF: exclude generator and smart load
+        if effective_profile == PROFILE_FSF_COMPACT and (conf.get("no_compact") or conf.get("smart_load_only") or conf.get("ct_clamp_only")):
+            continue
+
+        filtered_configs.append(conf)
+
+    _LOGGER.info("Setting up %d number entities for %s (profile: %s)", len(filtered_configs), coordinator.dsn, effective_profile)
+    entities = [AohaiGenericNumberEntity(coordinator, conf) for conf in filtered_configs]
     async_add_entities(entities)
 
 

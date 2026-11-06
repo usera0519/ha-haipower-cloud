@@ -10,8 +10,10 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     DOMAIN,
     CONF_ENTITY_MODE,
-    ENTITY_MODE_BASIC,
-    ENTITY_MODE_FULL,
+    PROFILE_AUTO,
+    PROFILE_BASIC,
+    PROFILE_FSF_COMPACT,
+    get_effective_profile,
 )
 from .coordinator import AohaiDataUpdateCoordinator
 
@@ -68,6 +70,7 @@ SWITCH_CONFIGS = [
         "name": "Generator Dry Contact",
         "param": "dryControl",
         "icon": "mdi:electric-switch",
+        "no_compact": True,
     },
     {
         "key": "ac_charge_enable_switch",
@@ -93,6 +96,7 @@ SWITCH_CONFIGS = [
         "name": "Generator Charging",
         "param": "genChargeEn",
         "icon": "mdi:generator-portable",
+        "no_compact": True,
     },
     {
         "key": "equalization_switch",
@@ -116,16 +120,20 @@ SWITCH_CONFIGS = [
 ]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    """Set up HaiPower switches based on a config entry and entity mode."""
+    """Set up HaiPower switches based on model profile."""
     coordinator: AohaiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entity_mode = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL))
+    cfg_profile = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
+    effective_profile = get_effective_profile(cfg_profile, coordinator.model_name)
 
-    if entity_mode == ENTITY_MODE_BASIC:
+    if effective_profile == PROFILE_BASIC:
         configs = [c for c in SWITCH_CONFIGS if c.get("is_basic", False)]
         _LOGGER.info("Setting up %d BASIC switches for %s", len(configs), coordinator.dsn)
+    elif effective_profile == PROFILE_FSF_COMPACT:
+        configs = [c for c in SWITCH_CONFIGS if not c.get("no_compact", False)]
+        _LOGGER.info("Setting up %d FSF COMPACT switches for %s", len(configs), coordinator.dsn)
     else:
         configs = SWITCH_CONFIGS
-        _LOGGER.info("Setting up %d FULL switches for %s", len(configs), coordinator.dsn)
+        _LOGGER.info("Setting up %d switches for %s (profile: %s)", len(configs), coordinator.dsn, effective_profile)
 
     entities = [AohaiGenericSwitch(coordinator, conf) for conf in configs]
     async_add_entities(entities)

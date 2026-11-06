@@ -16,8 +16,8 @@ from .const import (
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     CONF_ENTITY_MODE,
-    ENTITY_MODE_FULL,
-    ENTITY_MODE_BASIC,
+    PROFILE_AUTO,
+    MODEL_PROFILE_CHOICES,
 )
 from .api import AohaiApiClient, AohaiAuthError, AohaiApiError
 
@@ -70,21 +70,21 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     async def async_step_device(self, user_input=None):
-        """Handle device selection, entity mode, and custom naming."""
+        """Handle device selection, model profile, and custom naming."""
         errors = {}
 
         if user_input is not None:
             selected_dsn = user_input[CONF_DSN]
             custom_name = user_input.get(CONF_DEVICE_NAME) or f"Inverter {selected_dsn}"
             scan_interval = user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-            entity_mode = user_input.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL)
+            entity_mode = user_input.get(CONF_ENTITY_MODE, PROFILE_AUTO)
 
             selected_dev = next((d for d in self._devices if d.get("dsn") == selected_dsn), None)
 
             if selected_dev:
                 csn = selected_dev.get("csn", "")
                 addr = selected_dev.get("addr", 1)
-                model_name = selected_dev.get("typeName", "SD-PRO-EU 6.5K")
+                model_name = selected_dev.get("typeName") or selected_dev.get("deviceType2") or "SD-PRO-EU 6.5K"
 
                 await self.async_set_unique_id(selected_dsn)
                 self._abort_if_unique_id_configured()
@@ -109,11 +109,6 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             for d in self._devices
         }
 
-        mode_options = {
-            ENTITY_MODE_FULL: "Full (All sensors, battery BMS, ETA/AVG analytics, and all controls)",
-            ENTITY_MODE_BASIC: "Basic (Essential sensors, Energy Dashboard, and Inverter On/Off switch)",
-        }
-
         default_dsn = self._devices[0].get("dsn") if self._devices else ""
         default_model = self._devices[0].get("typeName", "Sandisolar SD-PRO-EU 6.5K") if self._devices else "Sandisolar"
         default_title = f"{default_model} ({default_dsn})" if default_dsn else "HaiPower Cloud Inverter"
@@ -121,7 +116,7 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema({
             vol.Required(CONF_DSN, default=default_dsn): vol.In(device_options),
             vol.Required(CONF_DEVICE_NAME, default=default_title): str,
-            vol.Required(CONF_ENTITY_MODE, default=ENTITY_MODE_FULL): vol.In(mode_options),
+            vol.Required(CONF_ENTITY_MODE, default=PROFILE_AUTO): vol.In(MODEL_PROFILE_CHOICES),
             vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
                 vol.Coerce(int), vol.Clamp(min=10, max=300)
             ),
@@ -140,7 +135,7 @@ class AohaiOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options for HaiPower Cloud integration."""
 
     async def async_step_init(self, user_input=None):
-        """Manage integration options."""
+        """Manage integration options (Model Profile / Entity Mode and Polling Interval)."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
@@ -150,16 +145,11 @@ class AohaiOptionsFlowHandler(config_entries.OptionsFlow):
         )
         current_mode = self.config_entry.options.get(
             CONF_ENTITY_MODE,
-            self.config_entry.data.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL),
+            self.config_entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO),
         )
 
-        mode_options = {
-            ENTITY_MODE_FULL: "Full (All sensors, battery BMS, ETA/AVG analytics, and all controls)",
-            ENTITY_MODE_BASIC: "Basic (Essential sensors, Energy Dashboard, and Inverter On/Off switch)",
-        }
-
         schema = vol.Schema({
-            vol.Required(CONF_ENTITY_MODE, default=current_mode): vol.In(mode_options),
+            vol.Required(CONF_ENTITY_MODE, default=current_mode): vol.In(MODEL_PROFILE_CHOICES),
             vol.Optional(CONF_SCAN_INTERVAL, default=current_interval): vol.All(
                 vol.Coerce(int), vol.Clamp(min=10, max=300)
             ),

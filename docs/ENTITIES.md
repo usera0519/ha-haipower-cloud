@@ -1,98 +1,151 @@
 # HaiPower Cloud / Sandisolar - Comprehensive Entities Catalog & Model Compatibility
 
-This document provides a complete technical explanation for all entities exposed by the `haipower_cloud` Home Assistant integration, based on the official technical manuals for **Aohai Digital Power**, **Sandisolar**, and OEM partner inverters.
+This document provides a complete technical explanation for all entities exposed by the `haipower_cloud` Home Assistant integration, based on the engineering manuals for **Aohai Digital Power**, **Sandisolar**, and OEM partner inverters.
 
 ---
 
-## 1. Supported Inverter Families & Architectural Overview
+## 1. Supported Inverter Families & Architectural Groups
 
-Based on the engineering manuals located in the `manuals/` directory, the cloud platform (`eu.aohaidigitalpower.com`) communicates with multiple inverter series. Each family has specific hardware characteristics:
+Based on the 18 official technical manuals located in the `manuals/` directory, all supported inverters have been categorized into **6 functional groups** sharing hardware capabilities, wiring interfaces, and register sets:
 
-| Family / Series | Phase | Battery System | MPPT Count | AC Outputs | Key Features |
-|---|---|---|---|---|---|
-| **AO-6KSL-G3 / GSA-PRO** *(e.g. SD-PRO-EU 6.5K)* | 1-Phase (230V) | 48V Low Voltage (40–60V DC) | 1 High-Current (40A) | Dual (Main + Smart Load) | Anti-backflow CT (1~3000), Generator dry contact, parallel up to 6 units, AFCI |
-| **GSA-5-6.2K1P-BL** *(Standard)* | 1-Phase (230V) | 48V Low Voltage (40–60V DC) | 1 High-Current (40A) | Single AC Output | Cost-effective hybrid, RGB ring indicator, CT/Meter support, off-grid & on-grid |
-| **SD-HYM-4862HWP** | 1-Phase (230V) | 48V Low Voltage (40–60V DC) | 1 Wide-Range (60–500V) | Dual (Main + Smart Load) | IP65 outdoor enclosure, parallel operation, Smart Load shedding, built-in Wi-Fi |
-| **HSC-3-8K1P-BL** | 1-Phase (230V) | 48V Low Voltage (40–60V DC) | 2 Independent MPPTs | Main + EPS Backup | Dual roof tracker, <10ms UPS switchover, peak shaving, Time-of-Use (TOU) tariffs |
-| **HTA-15-30K3P-BH** | 3-Phase (400V) | High Voltage (150–800V DC) | 2–4 MPPTs (up to 1000V) | 3-Phase + Dual EPS | Commercial/Large residential, 100% unbalanced 3-phase output, dual EPS, 3-phase CT |
-| **FSF-1.5-2K1P-BL** | 1-Phase (230V) | 12V / 24V Low Voltage | 1 MPPT (30–400V) | Single AC Output | Balcony / RV / Cabin storage, compact size, basic battery charging, no dual output |
+### Group 1: `AO / GSA-PRO` Family (Residential 1-Phase 48V LV - Smart Meter, Smart Load & Generator)
+* **Covered Inverter Models (from manuals):**
+  * **AO-3~6KSL-G1:** AO-3KSL-G1, AO-4KSL-G1, AO-5KSL-G1, AO-6KSL-G1
+  * **AO-3~4KSL-G2 & AO-5~6KSL-G2:** AO-3KSL-G2, AO-4KSL-G2, AO-5KSL-G2, AO-6KSL-G2
+  * **AO-3~6KSL-G3:** AO-3KSL-G3, AO-4KSL-G3, AO-5KSL-G3, **AO-6KSL-G3** *(Primary verified model)*
+  * **GSA-5~6.2K1P-BL & GSA-5~6.2K1P-BL-PRO:** GSA-5K1P-BL, GSA-6.2K1P-BL, GSA-5K1P-BL-PRO, GSA-6.2K1P-BL-PRO
+  * **SD-PRO-EU Series:** SD-PRO-EU 6.5K (OEM Sandisolar)
+  * **SD-HYM Series:** SD-HYM-4862HWP (IP65 Outdoor Hybrid)
+* **Electrical Architecture:** Single-phase 230V AC, 48V Low-Voltage battery (40V–60V DC), single high-current MPPT (up to 40A DC, 90–450V DC operating range, max Voc 500V DC).
+* **Metering & Anti-Backflow:** **RS485 Smart Meter** (connected to RJ45 pins 7 & 8; register 88 `ctMode`: `0 = Smart Meter`, `1 = CT`). **Notice:** The physical `AO-6KSL-G3` inverter has **no physical CT clamp port** on its terminal panel. Zero-export anti-backflow is performed via the RS485 Smart Meter. Consequently, CT clamp calibration/detection buttons and CT current ratio settings are automatically excluded in this profile to prevent confusion.
+* **AC Outputs & Generator:** Dual AC outputs (Main UPS output + Smart Load secondary output with separate cutoff voltage/SOC thresholds), Generator dry contact auto-start, parallel operation up to 6 units.
 
-> **Legend for Compatibility Table:**
-> * `✓` = Fully supported and verified by hardware specification / register mapping.
-> * `❌` = Not supported by this inverter hardware architecture (e.g., 3-phase voltage on single-phase inverter, Smart Load on single-output inverter).
-> * `?` = Feature depends on specific hardware variant, installed optional board (such as AFCI module), or firmware release.
+---
+
+### Group 2: `HSC / AH 1P` Family (Residential 1-Phase 48V LV - Dual MPPT, CT Clamp & Meter, EPS)
+* **Covered Inverter Models (from manuals):**
+  * **HSC-3~8K1P-BL:** HSC-3K1P-BL, HSC-3.6K1P-BL, HSC-4K1P-BL, HSC-5K1P-BL, HSC-6K1P-BL, HSC-8K1P-BL
+  * **AH-3~6KSL-G2:** AH-3KSL-G2, AH-3.6KSL-G2, AH-4KSL-G2, AH-4.6KSL-G2, AH-5KSL-G2, AH-6KSL-G2
+  * **FSA-3~4K1P-BL:** FSA-3K1P-BL, FSA-4K1P-BL
+* **Electrical Architecture:** Single-phase 230V AC, 48V Low-Voltage battery (40V–60V DC), **dual independent MPPT trackers** (ideal for East-West roof orientations).
+* **Metering & Anti-Backflow:** Supports both **physical external CT clamp** (with calibration command `reg 96=1` and direction detection `reg 96=2`) and RS485 energy meters.
+* **Special Capabilities:** <10ms UPS switchover, peak shaving, Time-of-Use (TOU) scheduled tariffs, microinverter AC coupling on the GEN port.
+
+---
+
+### Group 3: `FSC / HSA 1P` Family (High-Power Residential 1-Phase 48V LV - 8kW to 12kW)
+* **Covered Inverter Models (from manuals):**
+  * **FSC-8~12K1P-BL & FSC-8~12K1P-BL-G3:** FSC-8K1P-BL, FSC-10K1P-BL, FSC-12K1P-BL, FSC-8K1P-BL-G3, FSC-10K1P-BL-G3, FSC-12K1P-BL-G3
+  * **HSA-8~12K1P-BL:** HSA-8K1P-BL, HSA-10K1P-BL, HSA-12K1P-BL
+* **Electrical Architecture:** Single-phase 230V AC, 48V Low-Voltage battery with high battery current capability (up to 220A charge/discharge).
+* **Metering & Anti-Backflow:** Physical CT clamp inputs and RS485 smart meters, full CT calibration and detection support.
+* **Special Capabilities:** 3 to 4 MPPT strings, parallel operation up to 16 units, heavy generator auto-start with programmable power limits.
+
+---
+
+### Group 4: `HUA 3P LV` Family (Commercial/Residential 3-Phase 400V - 48V Low-Voltage Battery)
+* **Covered Inverter Models (from manuals):**
+  * **HUA-8~15K3P-BL:** HUA-8K3P-BL, HUA-10K3P-BL, HUA-12K3P-BL, HUA-15K3P-BL
+* **Electrical Architecture:** Three-phase 400V AC (3L + N + PE), **48V Low-Voltage battery** (40V–60V DC, standard 48V server rack / LiFePO4 batteries).
+* **Key Features:** **100% unbalanced three-phase output** (each phase can deliver up to 50% of total rated power independently), dual MPPTs, 3-phase Smart Meter (Acrel/Chint) or 3-phase CT clamps, dual EPS backup circuits.
+
+---
+
+### Group 5: `HTA / AH-TH 3P HV` Family (Commercial 3-Phase 400V - High-Voltage 150V–800V Battery)
+* **Covered Inverter Models (from manuals):**
+  * **HTA-15~30K3P-BH:** HTA-15K3P-BH, HTA-20K3P-BH, HTA-25K3P-BH, HTA-30K3P-BH
+  * **AH-4~10KTH-G1:** AH-4KTH-G1, AH-5KTH-G1, AH-6KTH-G1, AH-8KTH-G1, AH-10KTH-G1
+  * **AHW-6~10KTHD-G1:** AHW-6KTHD-G1, AHW-8KTHD-G1, AHW-10KTHD-G1
+* **Electrical Architecture:** Three-phase 400V AC (3L + N + PE), **High-Voltage Battery System (150V–800V DC)**.
+* **PV Inputs:** 2 to 4 high-voltage MPPT trackers (up to 1000V DC Voc, max 45kW PV power).
+* **Notice:** Low-voltage battery thresholds (e.g. 48V–58V float/CV voltage, 42V low cutoff) do not apply to this family; the high-voltage BMS communicates pack parameters directly over CAN bus.
+
+---
+
+### Group 6: `FSF Compact` Family (1-Phase 230V - 12V/24V Compact Balcony / RV Storage)
+* **Covered Inverter Models (from manuals):**
+  * **FSF-1.5~2K1P-BL:** FSF-1.5K1P-BL, FSF-2K1P-BL
+* **Electrical Architecture:** Single-phase 230V AC, 12V or 24V Low-Voltage battery.
+* **Design Purpose:** Balcony solar systems, off-grid cabins, mobile RV / camper installations.
+* **Notice:** Single MPPT (30–400V), single AC output. No generator dry contact, no smart load secondary output, no external CT clamp.
 
 ---
 
 ## 2. Inverter Model Compatibility Matrix
 
-| Entity Name | Key | Type | Mode | AO-6KSL / GSA-PRO | GSA Standard | SD-HYM HWP | HSC 1P | HTA 3P | FSF 1P |
-|---|---|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Inverter Operation** | `power_switch` | Switch | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Audible Buzzer** | `buzzer_switch` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Anti-Backflow (Zero Export)** | `anti_backflow_switch` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
-| **External CT Enable** | `ct_enable` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
-| **Overload to Bypass** | `overload_to_bypass` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ? | ✓ |
-| **Zero Power Output** | `zero_current_enable` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
-| **VFRT Enable** | `vfrt_enable` | Switch | Full | ✓ | ? | ? | ✓ | ✓ | ❌ |
-| **Generator Dry Contact** | `generator_dry_contact` | Switch | Full | ✓ | ? | ✓ | ✓ | ✓ | ❌ |
-| **AC Grid Charging** | `ac_charge_enable_switch` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **EPS Output** | `eps_enable_switch` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Bypass Mode** | `bypass_enable_switch` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ? | ✓ |
-| **Generator Charging** | `gen_charge_enable_switch` | Switch | Full | ✓ | ? | ✓ | ✓ | ✓ | ❌ |
-| **Battery Equalization** | `equalization_switch` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Force Full Charge** | `force_full_charge_switch` | Switch | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Bluetooth Broadcast** | `bluetooth_switch` | Switch | Full | ✓ | ✓ | ? | ? | ? | ? |
-| **Force Inverter Data Refresh** | `refresh_button` | Button | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **CT Calibration** | `ct_calibration` | Button | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
-| **CT Detection** | `ct_detection` | Button | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
-| **Power Supply Priority** | `power_priority` | Select | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Charging Priority** | `charging_priority` | Select | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Grid Input Voltage Range** | `ac_input_type` | Select | Full | ✓ | ✓ | ✓ | ✓ | ? | ✓ |
-| **GEN Port Work Mode** | `gen_port_mode` | Select | Full | ✓ | ? | ✓ | ✓ | ✓ | ❌ |
-| **Max Battery Charge Current** | `max_battery_charge_current` | Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **AC Grid Charge Current** | `ac_charging_current_limit` | Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Generator Charge Current** | `generator_charging_current_limit`| Number | Full | ✓ | ? | ✓ | ✓ | ✓ | ❌ |
-| **Generator Rated Power** | `generator_input_power` | Number | Full | ✓ | ? | ✓ | ✓ | ✓ | ❌ |
-| **CT Current Ratio (1~3000)** | `ct_current_ratio` | Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
-| **Battery Charging CV Voltage** | `vbat_constant_charge` | Number | Full | ✓ | ✓ | ✓ | ✓ | ❌ (HV) | ✓ (12V scaled) |
-| **Battery Float Voltage** | `vbat_floating_charge` | Number | Full | ✓ | ✓ | ✓ | ✓ | ❌ (HV) | ✓ (12V scaled) |
-| **Battery to Grid Voltage (SBU)** | `bat2ac_volt` | Number | Full | ✓ | ✓ | ✓ | ✓ | ❌ (HV) | ✓ (12V scaled) |
-| **Grid to Battery Voltage (SBU)** | `ac2bat_volt` | Number | Full | ✓ | ✓ | ✓ | ✓ | ❌ (HV) | ✓ (12V scaled) |
-| **Battery Low-Voltage Cutoff** | `vbat_stop_discharge` | Number | Full | ✓ | ✓ | ✓ | ✓ | ❌ (HV) | ✓ (12V scaled) |
-| **Battery Under-Voltage Alarm** | `bat_undervolt_alarm` | Number | Full | ✓ | ✓ | ✓ | ✓ | ❌ (HV) | ✓ (12V scaled) |
-| **Low-Voltage Recovery** | `bat_lv_restart_volt` | Number | Full | ✓ | ✓ | ✓ | ✓ | ❌ (HV) | ✓ (12V scaled) |
-| **Battery Recharge Threshold** | `bat_need_charge_volt` | Number | Full | ✓ | ✓ | ✓ | ✓ | ❌ (HV) | ✓ (12V scaled) |
-| **Over-Voltage Disconnect** | `bat_overvolt_disconnect` | Number | Full | ✓ | ✓ | ✓ | ✓ | ❌ (HV) | ✓ (12V scaled) |
-| **On-Grid Discharge Cutoff SOC** | `grid_first_stop_soc` | Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ? |
-| **On-Grid Recovery SOC** | `grid_recover_soc` | Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ? |
-| **Off-Grid Discharge Cutoff SOC**| `offline_stop_soc` | Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ? |
-| **Off-Grid Recovery SOC** | `offline_recover_soc` | Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ? |
-| **Charging Cutoff SOC** | `charging_cutoff_soc` | Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ? |
-| **Smart Load Cutoff SOC** | `smart_load_cutoff_soc` | Number | Full | ✓ | ❌ | ✓ | ? | ✓ | ❌ |
-| **Smart Load Cutoff Voltage** | `smart_load_cutoff_volt` | Number | Full | ✓ | ❌ | ✓ | ? | ❌ (HV) | ❌ |
-| **Smart Load Recovery SOC** | `smart_load_recover_soc` | Number | Full | ✓ | ❌ | ✓ | ? | ✓ | ❌ |
-| **Smart Load Recovery Voltage** | `smart_load_recover_volt` | Number | Full | ✓ | ❌ | ✓ | ? | ❌ (HV) | ❌ |
-| **Anti-Reverse Grid Compensation**| `grid_power_compensation`| Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
-| **Active Power Rate Limit** | `active_power_rate` | Number | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **PV Total Power** | `pv_total_power` | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **House Load Power** | `house_load_power` | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **EPS Backup Load Power** | `eps_output_power` | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Battery Charging Power** | `battery_charging_power` | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Battery Discharging Power** | `battery_discharging_power`| Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Grid Active Power** | `grid_active_power` | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Grid Export Power** | `extra_ac_power_to_grid` | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
-| **Generator Active Power** | `generator_active_power` | Sensor | Basic/Full | ✓ | ? | ✓ | ✓ | ✓ | ❌ |
-| **Battery Voltage & Current** | `battery_voltage`/`current` | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ (HV) | ✓ |
-| **Battery SOC & Temperature** | `battery_soc`/`temp` | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ? |
-| **PV1 Voltage & Current** | `pv1_voltage`/`current` | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **PV2 Voltage & Current** | `pv2_voltage`/`current` | Sensor | Basic/Full | ? (Dual string) | ? | ? | ✓ | ✓ | ❌ |
-| **Grid Frequency & Voltage** | `grid_frequency`/`voltage`| Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Energy Dashboard Statistics** | `daily_pv_energy`, etc. | Sensor | Basic/Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Moving Averages (AVG 5m)** | `avg_pv_power`, etc. | Sensor | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Battery ETA & Speed** | `battery_charge_eta`, etc. | Sensor | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **AFCI Arc Detector Value** | `afci_value` | Sensor | Full | ? (with AFCI) | ? | ? | ? | ✓ | ❌ |
-| **CT Mode & Ratio Status** | `ct_mode`/`ratio_status` | Sensor | Full | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+> **Legend:**
+> * `✓` = Fully supported and verified by hardware specification and cloud register mapping.
+> * `❌` = Not supported by this inverter hardware architecture (e.g. physical CT clamp on AO-6KSL-G3, 48V thresholds on High-Voltage inverters, generator controls on FSF).
+> * `?` = Optional feature, depends on installed accessory card (e.g. AFCI arc-fault module) or firmware release.
+
+| Entity Name | Key | Type | Group 1: AO / GSA-PRO | Group 2: HSC / AH 1P | Group 3: FSC / HSA 1P | Group 4: HUA 3P LV | Group 5: HTA 3P HV | Group 6: FSF Compact | Full Profile | Basic Profile |
+|---|---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Inverter Operation** | `power_switch` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Audible Buzzer** | `buzzer_switch` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **Anti-Backflow (Zero Export)** | `anti_backflow_switch` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **External CT / Meter Enable** | `ct_enable` | Switch | ✓ (Meter) | ✓ (CT/Meter) | ✓ (CT/Meter) | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **Overload to Bypass** | `overload_to_bypass` | Switch | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ✓ | ❌ |
+| **Zero Power Output** | `zero_current_enable` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **VFRT Enable** | `vfrt_enable` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **Generator Dry Contact** | `generator_dry_contact` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **AC Grid Charging** | `ac_charge_enable_switch` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **EPS Output** | `eps_enable_switch` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **Bypass Mode** | `bypass_enable_switch` | Switch | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ✓ | ❌ |
+| **Generator Charging** | `gen_charge_enable_switch` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **Battery Equalization** | `equalization_switch` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **Force Full Charge** | `force_full_charge_switch` | Switch | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **Bluetooth Broadcast** | `bluetooth_switch` | Switch | ✓ | ? | ? | ? | ? | ? | ✓ | ❌ |
+| **Force Inverter Data Refresh** | `refresh_button` | Button | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **CT Calibration** | `ct_calibration` | Button | ❌ *(Meter)* | ✓ | ✓ | ? | ❌ *(Meter)* | ❌ | ✓ | ❌ |
+| **CT Detection** | `ct_detection` | Button | ❌ *(Meter)* | ✓ | ✓ | ? | ❌ *(Meter)* | ❌ | ✓ | ❌ |
+| **Power Supply Priority** | `power_priority` | Select | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **Charging Priority** | `charging_priority` | Select | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **Grid Input Voltage Range** | `ac_input_type` | Select | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ✓ | ❌ |
+| **GEN Port Work Mode** | `gen_port_mode` | Select | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **Max Battery Charge Current** | `max_battery_charge_current` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **AC Grid Charge Current** | `ac_charging_current_limit` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **Generator Charge Current** | `generator_charging_current_limit`| Number | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **Generator Rated Power** | `generator_input_power` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **CT Current Ratio (1~3000)** | `ct_current_ratio` | Number | ❌ *(Meter)* | ✓ | ✓ | ? | ❌ *(Meter)* | ❌ | ✓ | ❌ |
+| **Battery Charging CV Voltage** | `vbat_constant_charge` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **Battery Float Voltage** | `vbat_floating_charge` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **Battery to Grid Voltage (SBU)** | `bat2ac_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **Grid to Battery Voltage (SBU)** | `ac2bat_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **Battery Low-Voltage Cutoff** | `vbat_stop_discharge` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **Battery Under-Voltage Alarm** | `bat_undervolt_alarm` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **Low-Voltage Recovery** | `bat_lv_restart_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **Battery Recharge Threshold** | `bat_need_charge_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **Over-Voltage Disconnect** | `bat_overvolt_disconnect` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **On-Grid Discharge Cutoff SOC** | `grid_first_stop_soc` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ❌ |
+| **On-Grid Recovery SOC** | `grid_recover_soc` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ❌ |
+| **Off-Grid Discharge Cutoff SOC**| `offline_stop_soc` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ❌ |
+| **Off-Grid Recovery SOC** | `offline_recover_soc` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ❌ |
+| **Charging Cutoff SOC** | `charging_cutoff_soc` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ❌ |
+| **Smart Load Cutoff SOC** | `smart_load_cutoff_soc` | Number | ✓ | ? | ✓ | ? | ✓ | ❌ | ✓ | ❌ |
+| **Smart Load Cutoff Voltage** | `smart_load_cutoff_volt` | Number | ✓ | ? | ✓ | ? | ❌ *(HV)* | ❌ | ✓ | ❌ |
+| **Smart Load Recovery SOC** | `smart_load_recover_soc` | Number | ✓ | ? | ✓ | ? | ✓ | ❌ | ✓ | ❌ |
+| **Smart Load Recovery Voltage** | `smart_load_recover_volt` | Number | ✓ | ? | ✓ | ? | ❌ *(HV)* | ❌ | ✓ | ❌ |
+| **Anti-Reverse Grid Compensation**| `grid_power_compensation`| Number | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **Active Power Rate Limit** | `active_power_rate` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **PV Total Power** | `pv_total_power` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **House Load Power** | `house_load_power` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **EPS Backup Load Power** | `eps_output_power` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Battery Charging Power** | `battery_charging_power` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Battery Discharging Power** | `battery_discharging_power`| Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Grid Active Power** | `grid_active_power` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Grid Export Power** | `extra_ac_power_to_grid` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ✓ |
+| **Generator Active Power** | `generator_active_power` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ✓ |
+| **Battery Voltage & Current** | `battery_voltage`/`current` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ (HV) | ✓ | ✓ | ✓ |
+| **Battery SOC & Temperature** | `battery_soc`/`temp` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ✓ |
+| **PV1 Voltage & Current** | `pv1_voltage`/`current` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **PV2 Voltage & Current** | `pv2_voltage`/`current` | Sensor | ? (Dual string) | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ✓ |
+| **Grid Frequency & Voltage** | `grid_frequency`/`voltage`| Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Energy Dashboard Statistics** | `daily_pv_energy`, etc. | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Moving Averages (AVG 5m)** | `avg_pv_power`, etc. | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **Battery ETA & Speed** | `battery_charge_eta`, etc. | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ |
+| **AFCI Arc Detector Value** | `afci_value` | Sensor | ? (with AFCI) | ? | ? | ? | ✓ | ❌ | ✓ | ❌ |
+| **CT Mode Status** | `ct_mode_status` | Sensor | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
+| **CT Ratio Status** | `ct_ratio_status` | Sensor | ❌ *(Meter)* | ✓ | ✓ | ? | ❌ *(Meter)* | ❌ | ✓ | ❌ |
 
 ---
 
@@ -101,148 +154,147 @@ Based on the engineering manuals located in the `manuals/` directory, the cloud 
 ### 3.1 Switches Platform
 
 #### `Inverter Operation` (`power_switch`)
-* **Cloud Parameter:** `onOff` / `inveterOnOff` / `onoff`
-* **Available in Basic Mode:** Yes
-* **Description:** Master electronic switch controlling whether the inverter stage is active or stopped. When turned OFF, the inverter stops generating AC power and disconnects from supplying the loads, but the internal MPPT charger continues charging the battery if solar power is available. Turning ON activates inverter conversion and power delivery.
+* **Cloud Parameter:** `onOff` / `inveterOnOff` / `telemetry.onoff`
+* **Description:** Master software power switch for the inverter. When toggled OFF, the inverter enters standby/shutdown mode, disabling the primary DC-to-AC power stage. When toggled ON, the inverter resumes normal grid-tied / off-grid power generation. Available in both **Basic** and **Full** modes.
 
 #### `Audible Buzzer` (`buzzer_switch`)
 * **Cloud Parameter:** `dspBeepOnOff`
-* **Description:** Controls the internal piezo buzzer alarm inside the inverter. When enabled, the inverter emits audible beeps upon button clicks, power state transitions, overload warnings, or fault conditions. Disabling it silences all routine and warning beeps.
+* **Description:** Enables or mutes the internal audible buzzer on the inverter motherboard for keypress confirmations and fault/warning alerts.
 
 #### `Anti-Backflow (Zero Export)` (`anti_backflow_switch`)
 * **Cloud Parameter:** `localAntiBackflowEnable`
-* **Description:** Activates the local anti-backflow function (Zero Export to Grid). When enabled, the inverter dynamically throttles solar power output and battery discharge to ensure zero electrical power is fed back into the public grid. Requires an external Current Transformer (CT) or energy meter installed at the main grid connection point.
+* **Description:** Controls zero-export protection. When enabled, the inverter curtails PV output to strictly match load demands and prevent feeding surplus power into the public electricity grid. On `AO-6KSL-G3`, power flow is measured via the RS485 Smart Meter.
 
 #### `External CT Enable` (`ct_enable`)
-* **Cloud Parameter:** `ctMode` (0 = Meter / Disabled, 1 = CT Enabled)
-* **Description:** Selects the external grid sensing device between an RS485 energy meter (Modbus RTU) and an analog Current Transformer (CT clamp). Enabling this instructs the DSP to read grid import/export directly from the CT port.
+* **Cloud Parameter:** `ctMode` (0 = Smart Meter / Disabled, 1 = CT Enabled)
+* **Description:** Toggles external current measurement mode. On inverters with physical CT clamp terminals (`HSC`, `FSC`), this enables reading from the external CT clamp. On `AO-6KSL-G3`, setting this to 0 activates the RS485 Smart Meter.
 
 #### `Overload to Bypass` (`overload_to_bypass`)
 * **Cloud Parameter:** `overloadToBypass`
-* **Description:** In battery mode, if the home load exceeds the inverter's rated continuous power capacity (e.g., >6000W), this setting automatically transfers the load to grid bypass without cutting off power. Once load drops to normal levels, the inverter returns to battery power.
+* **Description:** When continuous load demands exceed the inverter's rated continuous inverter power, this switch instructs the inverter to automatically transfer loads to AC utility grid bypass instead of tripping an overload fault.
 
 #### `Zero Power Output` (`zero_current_enable`)
 * **Cloud Parameter:** `zeroCurrentEnable`
-* **Description:** Extreme zero-export protection setting. While normal anti-backflow allows micro-second power fluctuations, zero power output enforces a strict negative export margin to prevent any reverse energy flow on sensitive digital grid meters.
+* **Description:** Forces zero-current export buffer to avoid accidental reverse feed into high-sensitivity meters.
 
 #### `VFRT Enable` (`vfrt_enable`)
-* **Cloud Parameter:** `vfrtEn`
-* **Description:** Voltage Fault Ride-Through (VFRT) stabilization setting. Mandated by certain European grid codes (e.g., EN 50549 / VDE-AR-N 4105), this enables the inverter to remain connected during brief grid voltage dips instead of immediately disconnecting.
+* **Cloud Parameter:** `vfrtEnable`
+* **Description:** Voltage and Frequency Ride-Through control for European grid code compliance.
 
 #### `Generator Dry Contact` (`generator_dry_contact`)
-* **Cloud Parameter:** `dryControl`
-* **Description:** Controls the dry contact relay terminals (NC/NO) used to signal an external auto-start generator or turn on an external contactor when battery voltage drops below the recharge threshold.
+* **Cloud Parameter:** `generatorDryContact`
+* **Description:** Enables relay dry contact control on the motherboard to automatically crank or signal an external backup fuel generator when battery voltage drops below `batNeedChrVolt`.
 
 #### `AC Grid Charging` (`ac_charge_enable_switch`)
-* **Cloud Parameter:** `acchargeEn` / `ubAcChargeEnable`
-* **Description:** Allows or blocks charging the battery from the utility AC grid. When turned off, the battery will strictly charge from solar PV power (or generator, if enabled), preventing utility electricity consumption for battery charging.
+* **Cloud Parameter:** `acChrEnable`
+* **Description:** Allows or forbids the internal battery charger from drawing power from the utility AC grid.
 
 #### `EPS Output` (`eps_enable_switch`)
-* **Cloud Parameter:** `epSEn`
-* **Description:** Controls the Emergency Power Supply (EPS / Backup) output port. When disabled, the backup output is cut off even during grid outages. Must be enabled to provide uninterruptible power to critical backup circuits.
+* **Cloud Parameter:** `epsEnable`
+* **Description:** Enables off-grid Emergency Power Supply (EPS) backup output when the utility grid fails.
 
 #### `Bypass Mode` (`bypass_enable_switch`)
-* **Cloud Parameter:** `bypassEn`
-* **Description:** Allows the inverter to directly connect the utility AC grid to the loads (Bypass mode) whenever solar and battery power are depleted or when the inverter is in standby.
+* **Cloud Parameter:** `bypassEnable`
+* **Description:** Enables automatic internal static bypass routing AC grid power directly to loads.
 
 #### `Generator Charging` (`gen_charge_enable_switch`)
-* **Cloud Parameter:** `genChargeEn`
-* **Description:** Enables battery charging using power supplied to the GEN input port from a diesel/gasoline generator or microinverter AC input.
+* **Cloud Parameter:** `genChrEnable`
+* **Description:** Allows the inverter to charge the battery bank using power delivered to the generator input port.
 
 #### `Battery Equalization` (`equalization_switch`)
-* **Cloud Parameter:** `equalization`
-* **Description:** Manually initiates or enables periodic battery equalization charging (mainly for Lead-Acid, flooded, or AGM battery types) to balance individual cell voltages and remove lead sulfation.
+* **Cloud Parameter:** `batteryEqualization`
+* **Description:** Activates periodic high-voltage equalization cycle for lead-acid battery banks to prevent sulfation.
 
 #### `Force Full Charge` (`force_full_charge_switch`)
-* **Cloud Parameter:** `ubForceChargeEnable` / `forceFullCharge`
-* **Description:** Forces the inverter to immediately charge the connected battery bank to 100% SOC from any available source (solar and grid). Used prior to forecasted grid outages or storms.
-
-#### `Bluetooth Broadcast` (`bluetooth_switch`)
-* **Cloud Parameter:** `ubBluetoothEn`
-* **Description:** Enables or disables the local Bluetooth low-energy (BLE) radio on the inverter front panel, preventing unauthorized local device pairing.
+* **Cloud Parameter:** `forceFullCharge`
+* **Description:** Overrides current priority schedule to immediately charge the battery bank to 100% SOC.
 
 ---
 
 ### 3.2 Buttons Platform
 
 #### `Force Inverter Data Refresh` (`refresh_button`)
-* **Action:** Triggers an immediate HTTP polling refresh to retrieve the latest cloud telemetry and parameters without waiting for the scheduled scan interval.
+* **Description:** Requests immediate telemetry and parameter polling from the HaiPower cloud server.
 
 #### `CT Calibration` (`ct_calibration`)
-* **Action:** Calls cloud API register `96=1` (`view/hard/setOneRegister`). Instructs the inverter DSP to calibrate zero-offset and phase angle on the external CT clamp. Should be pressed during initial commissioning when loads are stable.
+* **Cloud Register:** Register 96 = `1`
+* **Hardware Availability:** HSC-3~8K, AH-SL-G2, FSC-8~12K, HSA-8~12K. *(Excluded on AO-6KSL-G3 which uses an RS485 Smart Meter)*.
+* **Description:** Triggers zero-point calibration on external physical CT current clamps. Must be performed when inverter is running with zero load through the CT to calibrate offset bias.
 
 #### `CT Detection` (`ct_detection`)
-* **Action:** Calls cloud API register `96=2` (`view/hard/setOneRegister`). Runs an automated CT wiring direction and polarity check. The inverter verifies whether the CT clamp is pointing towards the grid or the load, preventing reverse reading errors.
+* **Cloud Register:** Register 96 = `2`
+* **Hardware Availability:** HSC-3~8K, AH-SL-G2, FSC-8~12K, HSA-8~12K. *(Excluded on AO-6KSL-G3)*.
+* **Description:** Triggers CT polarity and orientation detection. The inverter generates a test power pulse and checks whether the CT clamp measures positive or negative current flow, automatically setting CT orientation.
 
 ---
 
-### 3.3 Selects Platform
+### 3.3 Select Platform (Operational Modes)
 
 #### `Power Supply Priority` (`power_priority`)
-* **Cloud Parameter:** `periodpower`
+* **Cloud Parameter:** `powerPriority`
 * **Options:**
-  1. `SOL (Solar/PV Priority)`: Solar energy powers loads first. If solar is insufficient, battery supplies remaining demand. Grid only supplies loads when battery drops to low voltage/cutoff SOC.
-  2. `UTI (Utility Priority)`: Utility grid powers loads as first priority. Solar and battery only charge the battery or support loads during grid blackout.
-  3. `SBU (Solar-Battery-Utility Priority)`: Solar energy powers loads first. Battery provides power whenever solar is unavailable. Utility grid only intervenes when battery reaches the Low-Voltage Cutoff threshold.
+  1. `SOL (Solar/PV Priority)`: Solar energy powers loads first. If solar is insufficient, battery supplies remaining demand. Utility grid is only used when battery reaches low voltage cutoff.
+  2. `UTI (Utility Priority)`: Utility grid powers loads as default. Solar and battery power are reserved for battery charging and power outages.
+  3. `SBU (Solar-Battery-Utility Priority)`: Solar energy powers loads first. Battery provides power whenever solar is unavailable. Inverter switches to utility grid only when battery drops below `bat2acVolt` / `gridFirstStopSOC`.
 
 #### `Charging Priority` (`charging_priority`)
-* **Cloud Parameter:** `periodcharge`
+* **Cloud Parameter:** `chargingPriority`
 * **Options:**
-  1. `CSO (Solar Priority)`: Solar charges the battery first. Utility grid only charges the battery when solar is completely unavailable (e.g. nighttime).
-  2. `SNU (Solar + Utility Hybrid)`: Solar and utility grid charge the battery simultaneously, maximizing battery recharge speed.
-  3. `OSO (Only Solar)`: Solar energy is the only source allowed to charge the battery, regardless of grid availability.
+  1. `CSO (Solar Priority)`: Solar energy charges battery first. Utility grid only charges battery when solar is completely unavailable.
+  2. `SNU (Solar + Utility Hybrid)`: Solar and AC utility grid charge the battery concurrently up to the configured current limit.
+  3. `OSO (Only Solar)`: Utility grid is completely forbidden from charging the battery, regardless of battery voltage.
 
 #### `Grid Input Voltage Range` (`ac_input_type`)
-* **Cloud Parameter:** `acInputType`
+* **Cloud Parameter:** `acInputMode`
 * **Options:**
-  1. `APL (Appliance - Wide 90-280V)`: Wide AC input acceptance range (90V~280V). Best suited for unstable rural grids or standard household appliances.
-  2. `UPS (UPS - Narrow 170-280V)`: Narrow AC input acceptance range (170V~280V) with fast (<10ms) transfer time, protecting sensitive IT equipment, servers, and computers from brownouts.
+  1. `APL (Appliance Mode)`: Wide input voltage window (90V–280V AC), ideal for unstable rural grids and generators.
+  2. `UPS (UPS Mode)`: Narrow input voltage window (170V–280V AC) with ultra-fast transfer time (<10ms) to protect sensitive computer equipment.
 
 #### `GEN Port Work Mode` (`gen_port_mode`)
 * **Cloud Parameter:** `genMode`
 * **Options:**
-  1. `Generator`: The port acts as an AC input for a fuel backup generator.
-  2. `Microinverter / AC Input`: The port accepts AC power from secondary solar microinverters, performing AC-coupling.
-  3. `Smart Load Output`: The port functions as an auxiliary output to power non-critical loads (e.g., heat pumps, water heaters, EV chargers) only when solar is surplus and battery SOC is high.
+  1. `Generator`: Port acts as an AC input for a fuel backup generator.
+  2. `Microinverter / AC Input`: Port accepts AC input from secondary solar microinverters, performing AC-coupling.
+  3. `Smart Load Output`: Port functions as an auxiliary output to power non-critical loads (e.g., heat pumps, water heaters, EV chargers) only when solar is surplus and battery SOC is high.
 
 ---
 
 ### 3.4 Numbers Platform (Inverter Settings)
 
 #### Battery Charging Currents:
-* **`Max Battery Charge Current`** (`intchargecurrentlimit`): Maximum combined DC charging current delivered to the battery (1A to 120A).
-* **`AC Grid Charge Current`** (`acChargingCurrent`): Maximum charging current allowed from the utility AC grid (1A to 100A).
-* **`Generator Charge Current`** (`genChargeLimit`): Maximum charging current drawn from the generator port (1A to 120A).
-* **`Generator Rated Power`** (`genInputPower`): Rated continuous power capacity of the attached generator (100W to 10,000W).
-* **`CT Current Ratio (1~3000)`** (`ctRatio`): The current transformer turns ratio (e.g., `100` for 100A:50mA CT, or `3000` for 3000:1 CT).
+* **`Max Battery Charge Current`** (`intchargecurrentlimit`): Combined DC charging current limit (1A to 120A).
+* **`AC Grid Charge Current`** (`acChargingCurrent`): Maximum charging current allowed from AC grid (1A to 100A).
+* **`Generator Charge Current`** (`genChargeLimit`): Maximum charging current drawn from generator (1A to 120A).
+* **`Generator Rated Power`** (`genInputPower`): Rated continuous power capacity of generator (100W to 10,000W).
+* **`CT Current Ratio (1~3000)`** (`ctRatio`): Current transformer turns ratio (1~3000). *(Excluded on AO-6KSL-G3)*.
 
-#### Battery Voltage Thresholds:
-* **`Battery Charging CV Voltage`** (`vbatconstantcharge`): Absorption / Constant Voltage setpoint for battery charging (48.0V to 59.2V).
-* **`Battery Float Voltage`** (`uwFloatVLead100T`): Trickle / Float voltage setpoint once battery reaches 100% (48.0V to 58.4V).
-* **`Battery to Grid Voltage (SBU Mode)`** (`bat2acVolt`): In SBU mode, voltage threshold where inverter switches loads back to utility grid (44.0V to 52.0V).
-* **`Grid to Battery Voltage (SBU Mode)`** (`ac2batVolt`): In SBU mode, voltage threshold where inverter returns from grid to battery power (48.0V to 58.0V).
-* **`Battery Low-Voltage Cutoff`** (`vbatStopForDischarge`): Cutoff voltage where inverter stops discharging battery to prevent cell damage (40.0V to 48.0V).
-* **`Battery Under-Voltage Alarm`** (`batUnderVoltPoint`): Threshold where inverter triggers audible warning and alarm (40.0V to 50.0V).
-* **`Low-Voltage Recovery`** (`batLVBreakRestartVolt`): Battery voltage required before re-enabling inverter output after an empty shutdown (50.0V to 58.0V).
-* **`Battery Recharge Threshold`** (`batNeedChrVolt`): Voltage threshold triggering dry contact auto-start for generator charging (50.0V to 56.0V).
-* **`Over-Voltage Disconnect`** (`batHighVoltDisConPoint`): High voltage cutoff protecting electronics from battery overvoltage spikes (50.0V to 62.0V).
+#### Battery Voltage Thresholds (48V Low-Voltage Profiles):
+* **`Battery Charging CV Voltage`** (`vbatconstantcharge`): Absorption / Constant Voltage setpoint (48.0V to 59.2V).
+* **`Battery Float Voltage`** (`uwFloatVLead100T`): Float trickle voltage setpoint (48.0V to 58.4V).
+* **`Battery to Grid Voltage (SBU Mode)`** (`bat2acVolt`): Switch loads from battery to grid (44.0V to 52.0V).
+* **`Grid to Battery Voltage (SBU Mode)`** (`ac2batVolt`): Switch loads from grid back to battery (48.0V to 58.0V).
+* **`Battery Low-Voltage Cutoff`** (`vbatStopForDischarge`): Cutoff voltage where inverter stops discharging (40.0V to 48.0V).
+* **`Battery Under-Voltage Alarm`** (`batUnderVoltPoint`): Audible alarm threshold (40.0V to 50.0V).
+* **`Low-Voltage Recovery`** (`batLVBreakRestartVolt`): Battery voltage to resume inverter operation (50.0V to 58.0V).
+* **`Battery Recharge Threshold`** (`batNeedChrVolt`): Voltage triggering generator dry-contact auto-start (50.0V to 56.0V).
+* **`Over-Voltage Disconnect`** (`batHighVoltDisConPoint`): High voltage cutoff protecting electronics (50.0V to 62.0V).
 
 #### Battery SOC Thresholds:
 * **`On-Grid Discharge Cutoff SOC`** (`gridFirstStopSOC`): When grid is connected, battery discharge stops at this SOC level (10% to 90%).
-* **`On-Grid Recovery SOC`** (`ubOPRecoverDischargeSOC`): Battery SOC required before resuming discharge to grid-tied loads (20% to 100%).
-* **`Off-Grid Discharge Cutoff SOC`** (`offLineLoadFirstStopSoc`): In off-grid islanding mode, battery cutoff SOC to preserve emergency reserve (5% to 90%).
-* **`Off-Grid Recovery SOC`** (`ubOffGridRecoverDischargeSOC`): Battery SOC required to restart off-grid EPS loads (10% to 100%).
+* **`On-Grid Recovery SOC`** (`ubOPRecoverDischargeSOC`): SOC required before resuming discharge to grid loads (20% to 100%).
+* **`Off-Grid Discharge Cutoff SOC`** (`offLineLoadFirstStopSoc`): In off-grid mode, emergency reserve cutoff (5% to 90%).
+* **`Off-Grid Recovery SOC`** (`ubOffGridRecoverDischargeSOC`): SOC required to restart off-grid EPS loads (10% to 100%).
 * **`Charging Cutoff SOC`** (`batFirststopSOC`): Target SOC where bulk charging terminates (50% to 100%).
 
 #### Secondary / Smart Load Settings:
-* **`Smart Load Cutoff SOC`** (`ubSecondLoadDisConSOC`): SOC threshold to disconnect secondary non-critical loads (10% to 100%).
+* **`Smart Load Cutoff SOC`** (`ubSecondLoadDisConSOC`): SOC threshold to disconnect secondary loads (10% to 100%).
 * **`Smart Load Cutoff Voltage`** (`nonCriticlLoad_BatDisConVolt`): Battery voltage to disconnect secondary loads (42.0V to 54.0V).
 * **`Smart Load Recovery SOC`** (`nonCriticlLoadRecorveSOC`): SOC required to re-enable smart load output (10% to 100%).
 * **`Smart Load Recovery Voltage`** (`nonCriticlLoadRecorveVol`): Voltage required to re-enable smart load output (42.0V to 56.0V).
 
 #### Grid & Power Rate Controls:
-* **`Anti-Reverse Grid Compensation`** (`uwGridPowerCompensation`): Power offset buffer (0W to 500W) maintained to guarantee zero grid export.
-* **`Active Power Rate Limit`** (`activePRate`): Inverter active power output curtailment percentage (1% to 100%).
+* **`Anti-Reverse Grid Compensation`** (`uwGridPowerCompensation`): Offset buffer (0W to 500W) to guarantee zero export.
+* **`Active Power Rate Limit`** (`activePRate`): Inverter active power curtailment percentage (1% to 100%).
 
 ---
 

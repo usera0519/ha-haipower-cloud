@@ -7,19 +7,42 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_ENTITY_MODE,
+    PROFILE_AUTO,
+    PROFILE_AO_GSA_PRO,
+    PROFILE_HSC_AH_1P,
+    PROFILE_FSC_HSA_1P,
+    PROFILE_HUA_3P_LV,
+    PROFILE_HTA_3P_HV,
+    PROFILE_FSF_COMPACT,
+    PROFILE_FULL,
+    get_effective_profile,
+)
 from .coordinator import AohaiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    """Set up Aohai buttons based on a config entry."""
+    """Set up Aohai buttons based on model profile."""
     coordinator: AohaiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([
-        AohaiRefreshButton(coordinator),
-        AohaiCtCalibrationButton(coordinator),
-        AohaiCtDetectionButton(coordinator),
-    ])
+    cfg_profile = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
+    effective_profile = get_effective_profile(cfg_profile, coordinator.model_name)
+
+    buttons = [AohaiRefreshButton(coordinator)]
+
+    # CT Calibration and Detection buttons are applicable to inverters with physical CT clamp inputs
+    # (AO-6KSL-G3 uses RS485 Smart Meter instead of physical CT clamp, so CT buttons are excluded in its profile)
+    if effective_profile in (PROFILE_HSC_AH_1P, PROFILE_FSC_HSA_1P, PROFILE_FULL):
+        buttons.append(AohaiCtCalibrationButton(coordinator))
+        buttons.append(AohaiCtDetectionButton(coordinator))
+        _LOGGER.info("Registered CT Calibration and Detection buttons for %s (%s)", coordinator.dsn, effective_profile)
+    else:
+        _LOGGER.info("Excluding physical CT clamp buttons for %s (profile: %s, uses Smart Meter or compact)", coordinator.dsn, effective_profile)
+
+    async_add_entities(buttons)
+
 
 class AohaiRefreshButton(CoordinatorEntity[AohaiDataUpdateCoordinator], ButtonEntity):
     """Button to force immediate data refresh from inverter."""
@@ -49,7 +72,7 @@ class AohaiRefreshButton(CoordinatorEntity[AohaiDataUpdateCoordinator], ButtonEn
 
 
 class AohaiCtCalibrationButton(CoordinatorEntity[AohaiDataUpdateCoordinator], ButtonEntity):
-    """Button to trigger External CT Calibration on the inverter."""
+    """Button to trigger External CT Calibration on inverters with CT clamp inputs."""
 
     _attr_has_entity_name = True
     _attr_name = "CT Calibration"
@@ -76,7 +99,7 @@ class AohaiCtCalibrationButton(CoordinatorEntity[AohaiDataUpdateCoordinator], Bu
 
 
 class AohaiCtDetectionButton(CoordinatorEntity[AohaiDataUpdateCoordinator], ButtonEntity):
-    """Button to trigger External CT Detection / Check on the inverter."""
+    """Button to trigger External CT Detection / Check on inverters with CT clamp inputs."""
 
     _attr_has_entity_name = True
     _attr_name = "CT Detection"

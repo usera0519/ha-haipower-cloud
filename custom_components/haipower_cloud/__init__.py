@@ -14,6 +14,9 @@ from .const import (
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     CONF_ENTITY_MODE,
+    PROFILE_AUTO,
+    PROFILE_BASIC,
+    PROFILE_FULL,
     ENTITY_MODE_FULL,
     ENTITY_MODE_BASIC,
 )
@@ -42,7 +45,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     model_name = entry.data.get("model_name", "SD-PRO-EU 6.5K / AO-6KSL-G3")
     addr = entry.data.get("addr", 1)
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
-    entity_mode = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL))
+    entity_mode = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
 
     client = AohaiApiClient(username, password)
 
@@ -66,12 +69,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     # Forward setups based on selected entity mode
-    if entity_mode == ENTITY_MODE_BASIC:
+    if entity_mode == PROFILE_BASIC:
         active_platforms = [Platform.SENSOR, Platform.SWITCH]
         _LOGGER.info("HaiPower Cloud loaded in BASIC mode (Basic sensors and Inverter Operation switch)")
     else:
         active_platforms = PLATFORMS
-        _LOGGER.info("HaiPower Cloud loaded in FULL mode (All sensors and controls active)")
+        _LOGGER.info("HaiPower Cloud loaded with profile '%s' for model '%s'", entity_mode, model_name)
 
     await hass.config_entries.async_forward_entry_setups(entry, active_platforms)
 

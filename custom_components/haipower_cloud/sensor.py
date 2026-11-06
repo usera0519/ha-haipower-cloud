@@ -32,8 +32,11 @@ from .const import (
     BATTERY_PRIORITY_MAP,
     OPERATION_MODE_MAP,
     CONF_ENTITY_MODE,
-    ENTITY_MODE_BASIC,
-    ENTITY_MODE_FULL,
+    PROFILE_AUTO,
+    PROFILE_AO_GSA_PRO,
+    PROFILE_BASIC,
+    PROFILE_FULL,
+    get_effective_profile,
 )
 from .coordinator import AohaiDataUpdateCoordinator
 
@@ -887,16 +890,21 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
 )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    """Set up HaiPower sensors based on config entry and entity mode."""
+    """Set up HaiPower sensors based on model profile."""
     coordinator: AohaiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entity_mode = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, ENTITY_MODE_FULL))
+    cfg_profile = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
+    effective_profile = get_effective_profile(cfg_profile, coordinator.model_name)
 
-    if entity_mode == ENTITY_MODE_BASIC:
+    if effective_profile == PROFILE_BASIC:
         descriptions = [d for d in SENSOR_TYPES if d.is_basic]
         _LOGGER.info("Setting up %d BASIC sensors for %s", len(descriptions), coordinator.dsn)
+    elif effective_profile == PROFILE_AO_GSA_PRO:
+        # Exclude CT clamp ratio status since AO-6KSL-G3 uses Smart Meter
+        descriptions = [d for d in SENSOR_TYPES if d.key != "ct_ratio_status"]
+        _LOGGER.info("Setting up %d sensors for %s (AO/GSA-PRO profile, Smart Meter)", len(descriptions), coordinator.dsn)
     else:
         descriptions = SENSOR_TYPES
-        _LOGGER.info("Setting up %d FULL sensors for %s", len(descriptions), coordinator.dsn)
+        _LOGGER.info("Setting up %d sensors for %s (profile: %s)", len(descriptions), coordinator.dsn, effective_profile)
 
     entities = [AohaiSensor(coordinator, description) for description in descriptions]
     async_add_entities(entities)

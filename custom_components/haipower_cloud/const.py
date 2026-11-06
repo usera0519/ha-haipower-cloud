@@ -11,9 +11,57 @@ CONF_SCAN_INTERVAL = "scan_interval"
 DEFAULT_SCAN_INTERVAL = 30
 
 CONF_ENTITY_MODE = "entity_mode"
-ENTITY_MODE_FULL = "full"
-ENTITY_MODE_BASIC = "basic"
-ENTITY_MODES = [ENTITY_MODE_FULL, ENTITY_MODE_BASIC]
+
+# Model Profiles / Functional Groups
+PROFILE_AUTO = "auto"
+PROFILE_AO_GSA_PRO = "ao_gsa_pro"
+PROFILE_HSC_AH_1P = "hsc_ah_1p"
+PROFILE_FSC_HSA_1P = "fsc_hsa_1p"
+PROFILE_HUA_3P_LV = "hua_3p_lv"
+PROFILE_HTA_3P_HV = "hta_3p_hv"
+PROFILE_FSF_COMPACT = "fsf_compact"
+PROFILE_FULL = "full"
+PROFILE_BASIC = "basic"
+
+ENTITY_MODE_FULL = PROFILE_FULL
+ENTITY_MODE_BASIC = PROFILE_BASIC
+
+MODEL_PROFILE_CHOICES = {
+    PROFILE_AUTO: "Auto-Detect Model (Recommended)",
+    PROFILE_AO_GSA_PRO: "AO-6KSL-G3 / GSA-PRO Series (1P 48V LV, Smart Meter, Smart Load, Gen)",
+    PROFILE_HSC_AH_1P: "HSC / AH / FSA Series (1P 48V LV, Dual MPPT, CT Clamp & Meter, EPS)",
+    PROFILE_FSC_HSA_1P: "FSC / HSA Series (1P 48V LV 8-12kW High Power)",
+    PROFILE_HUA_3P_LV: "HUA Series (3-Phase 400V, 48V LV Battery)",
+    PROFILE_HTA_3P_HV: "HTA / AH-TH Series (3-Phase 400V, High-Voltage 150-800V Battery)",
+    PROFILE_FSF_COMPACT: "FSF Series (1-Phase 230V, 12V/24V Compact Balcony/RV)",
+    PROFILE_FULL: "Full Mode (Expose all entities without model filtering)",
+    PROFILE_BASIC: "Basic Mode (Essential Energy Dashboard + Inverter On/Off)",
+}
+
+def get_effective_profile(configured_profile: str, model_str: str) -> str:
+    """Resolve effective functional group given configured choice and detected hardware string."""
+    if configured_profile not in (PROFILE_AUTO, None, ""):
+        return configured_profile
+
+    # Auto-detection from hardware string (e.g. 'AO-6KSL-G3', 'SD-PRO-EU 6.5K', 'HSC-6K1P-BL')
+    m = (model_str or "").upper()
+    # Check Three-Phase High-Voltage first (HTA, KTH, KTHD, BH)
+    if any(k in m for k in ["HTA-", "KTH", "KTHD", "BH"]):
+        return PROFILE_HTA_3P_HV
+    elif any(k in m for k in ["HUA-"]):
+        return PROFILE_HUA_3P_LV
+    elif any(k in m for k in ["FSC-", "HSA-"]):
+        return PROFILE_FSC_HSA_1P
+    elif any(k in m for k in ["HSC-", "AH-", "FSA-"]):
+        return PROFILE_HSC_AH_1P
+    elif any(k in m for k in ["FSF-"]):
+        return PROFILE_FSF_COMPACT
+    elif any(k in m for k in ["AO-", "GSA-", "SD-PRO", "SD-HYM"]):
+        return PROFILE_AO_GSA_PRO
+
+    # Default fallback for Sandisolar / HaiPower
+    return PROFILE_AO_GSA_PRO
+
 
 # Power Supply Priority: SOL (Solar/PV Priority), UTI (Utility Priority), SBU (Solar-Battery-Utility Priority)
 POWER_PRIORITY_OPTIONS = [
