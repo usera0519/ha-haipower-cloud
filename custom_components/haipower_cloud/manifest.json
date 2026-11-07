@@ -1,4 +1,6 @@
 {
+  "domain": "haipower_cloud",
+  "name": "HaiPower Cloud",
   "categories": [
     "energy.solar_batteries"
   ],
@@ -7,11 +9,9 @@
   ],
   "config_flow": true,
   "documentation": "https://github.com/usera0519/ha-haipower-cloud",
-  "domain": "haipower_cloud",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/usera0519/ha-haipower-cloud/issues",
-  "name": "HaiPower Cloud",
   "requirements": [],
   "version": "v0.2"
 }
