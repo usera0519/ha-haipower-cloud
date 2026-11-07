@@ -224,10 +224,12 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     AohaiSensorEntityDescription(
         key="total_work_time",
         name="Total Work Time",
-        native_unit_of_measurement="h",
         icon="mdi:timer-outline",
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("timeTotal2", 0),
+        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("timeTotal2") or "Unknown",
+        extra_attrs_fn=lambda data: {
+            "total_minutes": data.get("details", {}).get("invData", {}).get("timeTotal"),
+            "total_hours": round(float(data.get("details", {}).get("invData", {}).get("timeTotal", 0)) / 60.0, 1) if data.get("details", {}).get("invData", {}).get("timeTotal") is not None else None,
+        },
         is_basic=False,
     ),
 
