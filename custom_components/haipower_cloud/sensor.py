@@ -111,6 +111,25 @@ def _get_battery_status(data: dict) -> str:
     return "Standby"
 
 
+def _get_work_time_attrs(data: Any) -> dict[str, Any]:
+    """Extract numeric work time attributes safely."""
+    if hasattr(data, "data"):
+        data = data.data
+    if not isinstance(data, dict):
+        return {}
+    time_total = data.get("details", {}).get("invData", {}).get("timeTotal")
+    if time_total is not None:
+        try:
+            val = float(time_total)
+            return {
+                "total_minutes": int(val),
+                "total_hours": round(val / 60.0, 1),
+            }
+        except (ValueError, TypeError):
+            pass
+    return {}
+
+
 SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
     # ==========================================
     # 1. Real-Time Status & Operating Mode (BASIC)
@@ -226,10 +245,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
         name="Total Work Time",
         icon="mdi:timer-outline",
         value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("timeTotal2") or "Unknown",
-        extra_attrs_fn=lambda data: {
-            "total_minutes": data.get("details", {}).get("invData", {}).get("timeTotal"),
-            "total_hours": round(float(data.get("details", {}).get("invData", {}).get("timeTotal", 0)) / 60.0, 1) if data.get("details", {}).get("invData", {}).get("timeTotal") is not None else None,
-        },
+        extra_attrs_fn=_get_work_time_attrs,
         is_basic=False,
     ),
 
@@ -945,6 +961,8 @@ class AohaiSensor(CoordinatorEntity[AohaiDataUpdateCoordinator], SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return entity specific state attributes."""
+        if self.coordinator.data is None:
+            return None
         if self.entity_description.extra_attrs_fn:
-            return self.entity_description.extra_attrs_fn(self.coordinator)
+            return self.entity_description.extra_attrs_fn(self.coordinator.data)
         return None
