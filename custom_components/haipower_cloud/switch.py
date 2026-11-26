@@ -3,9 +3,12 @@ import logging
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .api import AohaiApiError
 
 from .const import (
     DOMAIN,
@@ -182,16 +185,20 @@ class AohaiGenericSwitch(CoordinatorEntity[AohaiDataUpdateCoordinator], SwitchEn
         except (ValueError, TypeError):
             return None
 
+    async def _async_set_state(self, state_val: int) -> None:
+        """Set switch parameter to 1 or 0 with error handling."""
+        cmds = [f"{self._param}={state_val}"]
+        if self._alt_param:
+            cmds.append(f"{self._alt_param}={state_val}")
+        try:
+            await self.coordinator.async_set_parameter(cmds)
+        except AohaiApiError as err:
+            raise HomeAssistantError(f"Failed to update {self._attr_name}: {err}") from err
+
     async def async_turn_on(self, **kwargs) -> None:
         _LOGGER.info("Enabling %s (%s)", self._attr_name, self.coordinator.dsn)
-        cmds = [f"{self._param}=1"]
-        if self._alt_param:
-            cmds.append(f"{self._alt_param}=1")
-        await self.coordinator.async_set_parameter(cmds)
+        await self._async_set_state(1)
 
     async def async_turn_off(self, **kwargs) -> None:
         _LOGGER.info("Disabling %s (%s)", self._attr_name, self.coordinator.dsn)
-        cmds = [f"{self._param}=0"]
-        if self._alt_param:
-            cmds.append(f"{self._alt_param}=0")
-        await self.coordinator.async_set_parameter(cmds)
+        await self._async_set_state(0)

@@ -107,15 +107,15 @@ Based on the 18 official technical manuals located in the `manuals/` directory, 
 | **Generator Charge Current** | `generator_charging_current_limit`| Number | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
 | **Generator Rated Power** | `generator_input_power` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ❌ | ✓ | ❌ |
 | **CT Current Ratio (1~3000)** | `ct_current_ratio` | Number | ❌ *(Meter)* | ✓ | ✓ | ? | ❌ *(Meter)* | ❌ | ✓ | ❌ |
-| **Battery Charging CV Voltage** | `vbat_constant_charge` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
-| **Battery Float Voltage** | `vbat_floating_charge` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
-| **Battery to Grid Voltage (SBU)** | `bat2ac_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
-| **Grid to Battery Voltage (SBU)** | `ac2bat_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
-| **Battery Low-Voltage Cutoff** | `vbat_stop_discharge` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
-| **Battery Under-Voltage Alarm** | `bat_undervolt_alarm` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
-| **Low-Voltage Recovery** | `bat_lv_restart_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
-| **Battery Recharge Threshold** | `bat_need_charge_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
-| **Over-Voltage Disconnect** | `bat_overvolt_disconnect` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ✓ (12V scaled) | ✓ | ❌ |
+| **Battery Charging CV Voltage** | `vbat_constant_charge` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ❌ *(48V only)* | ✓ | ❌ |
+| **Battery Float Voltage** | `vbat_floating_charge` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ❌ *(48V only)* | ✓ | ❌ |
+| **Battery to Grid Voltage (SBU)** | `bat2ac_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ❌ *(48V only)* | ✓ | ❌ |
+| **Grid to Battery Voltage (SBU)** | `ac2bat_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ❌ *(48V only)* | ✓ | ❌ |
+| **Battery Low-Voltage Cutoff** | `vbat_stop_discharge` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ❌ *(48V only)* | ✓ | ❌ |
+| **Battery Under-Voltage Alarm** | `bat_undervolt_alarm` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ❌ *(48V only)* | ✓ | ❌ |
+| **Low-Voltage Recovery** | `bat_lv_restart_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ❌ *(48V only)* | ✓ | ❌ |
+| **Battery Recharge Threshold** | `bat_need_charge_volt` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ❌ *(48V only)* | ✓ | ❌ |
+| **Over-Voltage Disconnect** | `bat_overvolt_disconnect` | Number | ✓ | ✓ | ✓ | ✓ | ❌ *(HV)* | ❌ *(48V only)* | ✓ | ❌ |
 | **On-Grid Discharge Cutoff SOC** | `grid_first_stop_soc` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ❌ |
 | **On-Grid Recovery SOC** | `grid_recover_soc` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ❌ |
 | **Off-Grid Discharge Cutoff SOC**| `offline_stop_soc` | Number | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ✓ | ❌ |

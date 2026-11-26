@@ -1,10 +1,11 @@
 """Config flow for HaiPower Cloud / Sandisolar integration."""
 import logging
+from typing import Any
+from collections.abc import Mapping
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.helpers import config_validation as cv
 
 from .const import (
     DOMAIN,
@@ -23,6 +24,7 @@ from .api import AohaiApiClient, AohaiAuthError, AohaiApiError
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for HaiPower Cloud."""
 
@@ -35,6 +37,24 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._devices = []
         self._client = None
 
+    async def _async_authenticate(
+        self, username: str, password: str, fetch_devices: bool = False
+    ) -> tuple[AohaiApiClient | None, str | None]:
+        """Authenticate with HaiPower Cloud and optionally fetch device list."""
+        client = AohaiApiClient(username, password)
+        try:
+            await self.hass.async_add_executor_job(client.login)
+            if fetch_devices:
+                self._devices = await self.hass.async_add_executor_job(client.get_devices)
+        except AohaiAuthError:
+            return None, "invalid_auth"
+        except AohaiApiError:
+            return None, "cannot_connect"
+        except Exception as ex:  # noqa: BLE001
+            _LOGGER.exception("Unexpected error during login: %s", ex)
+            return None, "unknown"
+        return client, None
+
     async def async_step_user(self, user_input=None):
         """Handle the initial user login step."""
         errors = {}
@@ -43,24 +63,15 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._username = user_input[CONF_USERNAME]
             self._password = user_input[CONF_PASSWORD]
 
-            self._client = AohaiApiClient(self._username, self._password)
-
-            try:
-                await self.hass.async_add_executor_job(self._client.login)
-                self._devices = await self.hass.async_add_executor_job(self._client.get_devices)
-            except AohaiAuthError:
-                errors["base"] = "invalid_auth"
-            except AohaiApiError:
-                errors["base"] = "cannot_connect"
-            except Exception as ex:
-                _LOGGER.exception("Unexpected error during login: %s", ex)
-                errors["base"] = "unknown"
-
-            if not errors:
-                if not self._devices:
-                    errors["base"] = "no_devices_found"
-                else:
-                    return await self.async_step_device()
+            self._client, error = await self._async_authenticate(
+                self._username, self._password, fetch_devices=True
+            )
+            if error:
+                errors["base"] = error
+            elif not self._devices:
+                errors["base"] = "no_devices_found"
+            else:
+                return await self.async_step_device()
 
         schema = vol.Schema({
             vol.Required(CONF_USERNAME): str,
@@ -123,6 +134,60 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         })
 
         return self.async_show_form(step_id="device", data_schema=schema, errors=errors)
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> config_entries.ConfigFlowResult:
+        """Handle initiation of a reauthentication flow."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Dialog that prompts the user for updated HaiPower Cloud credentials."""
+        errors: dict[str, str] = {}
+        reauth_entry = (
+            self._get_reauth_entry()
+            if hasattr(self, "_get_reauth_entry")
+            else self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        )
+        current_username = reauth_entry.data.get(CONF_USERNAME, "")
+
+        if user_input is not None:
+            new_username = user_input.get(CONF_USERNAME, current_username)
+            new_password = user_input[CONF_PASSWORD]
+
+            _, error = await self._async_authenticate(new_username, new_password)
+            if error:
+                errors["base"] = error
+            else:
+                updates = {
+                    CONF_USERNAME: new_username,
+                    CONF_PASSWORD: new_password,
+                }
+                if hasattr(self, "async_update_reload_and_abort"):
+                    return self.async_update_reload_and_abort(
+                        reauth_entry,
+                        data_updates=updates,
+                    )
+                self.hass.config_entries.async_update_entry(
+                    reauth_entry,
+                    data={**reauth_entry.data, **updates},
+                )
+                await self.hass.config_entries.async_reload(reauth_entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
+
+        schema = vol.Schema({
+            vol.Required(CONF_USERNAME, default=current_username): str,
+            vol.Required(CONF_PASSWORD): str,
+        })
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=schema,
+            description_placeholders={"username": current_username},
+            errors=errors,
+        )
 
     @staticmethod
     @callback

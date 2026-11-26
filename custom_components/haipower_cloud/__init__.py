@@ -3,6 +3,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 
 from .const import (
     DOMAIN,
@@ -20,7 +21,7 @@ from .const import (
     ENTITY_MODE_FULL,
     ENTITY_MODE_BASIC,
 )
-from .api import AohaiApiClient
+from .api import AohaiApiClient, AohaiApiError, AohaiAuthError
 from .coordinator import AohaiDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,7 +51,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     client = AohaiApiClient(username, password)
 
     # Initial login
-    await hass.async_add_executor_job(client.login)
+    try:
+        await hass.async_add_executor_job(client.login)
+    except AohaiAuthError as err:
+        raise ConfigEntryAuthFailed(f"Invalid HaiPower Cloud credentials: {err}") from err
+    except AohaiApiError as err:
+        raise ConfigEntryNotReady(f"Unable to connect to HaiPower Cloud: {err}") from err
 
     coordinator = AohaiDataUpdateCoordinator(
         hass=hass,

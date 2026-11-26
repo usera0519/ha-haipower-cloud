@@ -4,10 +4,11 @@ import datetime
 from collections import deque
 from datetime import timedelta
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
-from .api import AohaiApiClient, AohaiApiError
+from .api import AohaiApiClient, AohaiApiError, AohaiAuthError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -196,32 +197,52 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
                 "details": detailed_info,
                 "calculated": calculated,
             }
+        except AohaiAuthError as err:
+            self._add_log(f"Authentication error: {err}")
+            raise ConfigEntryAuthFailed(f"Authentication failed for HaiPower Cloud: {err}") from err
         except AohaiApiError as err:
             self._add_log(f"Cloud communication error: {err}")
             raise UpdateFailed(f"Error communicating with HaiPower API: {err}") from err
 
-    async def async_set_parameter(self, key_value_list: list[str]) -> bool:
-        """Send command to update inverter parameters and refresh local state."""
-        self._add_log(f"Sending parameter to inverter: {key_value_list}")
-        success = await self.hass.async_add_executor_job(
-            self.client.set_parameter, self.csn, self.dsn, self.addr, key_value_list
-        )
+    async def _async_execute_command(self, description: str, func, *args) -> bool:
+        """Execute an inverter write command, handling auth/API errors cleanly."""
+        self._add_log(f"Sending command ({description})")
+        try:
+            success = await self.hass.async_add_executor_job(func, *args)
+        except AohaiAuthError as err:
+            self._add_log(f"Authentication error during {description}: {err}")
+            if self.config_entry is not None:
+                self.config_entry.async_start_reauth(self.hass)
+            raise
+        except AohaiApiError as err:
+            self._add_log(f"Cloud error during {description}: {err}")
+            raise
+
         if success:
-            self._add_log(f"Parameter set successfully: {key_value_list}")
+            self._add_log(f"Command succeeded ({description})")
             await self.async_request_refresh()
         else:
-            self._add_log(f"Inverter rejected parameter: {key_value_list}")
+            self._add_log(f"Inverter rejected command ({description})")
         return success
+
+    async def async_set_parameter(self, key_value_list: list[str]) -> bool:
+        """Send command to update inverter parameters and refresh local state."""
+        return await self._async_execute_command(
+            f"parameter={key_value_list}",
+            self.client.set_parameter,
+            self.csn,
+            self.dsn,
+            self.addr,
+            key_value_list,
+        )
 
     async def async_set_register(self, register: int, value: int) -> bool:
         """Send register command to inverter (e.g. CT Calibration/Detection)."""
-        self._add_log(f"Sending register command to inverter: reg {register}={value}")
-        success = await self.hass.async_add_executor_job(
-            self.client.set_one_register, self.csn, self.addr, register, value
+        return await self._async_execute_command(
+            f"reg {register}={value}",
+            self.client.set_one_register,
+            self.csn,
+            self.addr,
+            register,
+            value,
         )
-        if success:
-            self._add_log(f"Register {register}={value} executed successfully.")
-            await self.async_request_refresh()
-        else:
-            self._add_log(f"Inverter rejected register {register}={value}.")
-        return success

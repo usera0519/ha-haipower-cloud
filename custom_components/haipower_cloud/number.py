@@ -9,9 +9,12 @@ from homeassistant.const import (
     UnitOfPower,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .api import AohaiApiError
 
 from .const import (
     DOMAIN,
@@ -354,8 +357,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if effective_profile == PROFILE_HTA_3P_HV and conf.get("lv_only"):
             continue
 
-        # In Compact FSF: exclude generator and smart load
-        if effective_profile == PROFILE_FSF_COMPACT and (conf.get("no_compact") or conf.get("smart_load_only") or conf.get("ct_clamp_only")):
+        # In Compact FSF (12V/24V): exclude generator, smart load, CT clamp, and 48V battery thresholds
+        if effective_profile == PROFILE_FSF_COMPACT and (
+            conf.get("no_compact")
+            or conf.get("smart_load_only")
+            or conf.get("ct_clamp_only")
+            or conf.get("lv_only")
+        ):
             continue
 
         filtered_configs.append(conf)
@@ -413,4 +421,7 @@ class AohaiGenericNumberEntity(CoordinatorEntity[AohaiDataUpdateCoordinator], Nu
         """Send setting update command to the inverter via cloud API."""
         raw_val = int(round(value * self._scale))
         _LOGGER.info("Setting %s to %s (raw parameter %s=%s)", self._attr_name, value, self._param, raw_val)
-        await self.coordinator.async_set_parameter([f"{self._param}={raw_val}"])
+        try:
+            await self.coordinator.async_set_parameter([f"{self._param}={raw_val}"])
+        except AohaiApiError as err:
+            raise HomeAssistantError(f"Failed to set {self._attr_name}: {err}") from err

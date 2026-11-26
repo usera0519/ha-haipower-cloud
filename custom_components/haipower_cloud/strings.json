@@ -18,6 +18,14 @@
           "entity_mode": "Model Profile / Entity Mode",
           "scan_interval": "Cloud polling interval in seconds (default: 30s)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate HaiPower Cloud",
+        "description": "Authentication failed for {username}. Please enter your updated password for eu.aohaidigitalpower.com.",
+        "data": {
+          "username": "Email / Username",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -27,7 +35,8 @@
       "unknown": "Unexpected error occurred during authentication."
     },
     "abort": {
-      "already_configured": "This inverter is already configured in Home Assistant."
+      "already_configured": "This inverter is already configured in Home Assistant.",
+      "reauth_successful": "Re-authentication was successful."
     }
   },
   "options": {
