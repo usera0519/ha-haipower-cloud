@@ -82,6 +82,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         active_platforms = PLATFORMS
         _LOGGER.info("HaiPower Cloud loaded with profile '%s' for model '%s'", entity_mode, model_name)
 
+    coordinator.platforms = active_platforms
     await hass.config_entries.async_forward_entry_setups(entry, active_platforms)
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
@@ -95,8 +96,12 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    coordinator: AohaiDataUpdateCoordinator | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    platforms = coordinator.platforms if coordinator and coordinator.platforms else PLATFORMS
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, platforms)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
+        removed = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+        if removed is not None:
+            await hass.async_add_executor_job(removed.client.close)
 
     return unload_ok

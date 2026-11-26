@@ -35,6 +35,7 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
         self.model_name = model_name
         self.addr = addr
         self.config_entry = config_entry
+        self.platforms: list = []
         
         # History buffers for rolling averages (last 10 samples)
         self.pv_history = deque(maxlen=10)
@@ -72,6 +73,16 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
             return "No cloud events recorded yet."
         return "\n".join(reversed(self.recent_logs))
 
+    @staticmethod
+    def _safe_float(val, default: float = 0.0) -> float:
+        """Convert API telemetry value safely to float."""
+        if val is None or val == "":
+            return default
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return default
+
     async def _async_update_data(self):
         """Fetch real-time data, detailed info, and settings from HaiPower Cloud API."""
         try:
@@ -85,34 +96,44 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
                 self.client.get_detailed_info, self.dsn
             )
 
+            # Guarantee dict payloads even if cloud returns null fields
+            device_info = device_info if isinstance(device_info, dict) else {}
+            params_info = params_info if isinstance(params_info, dict) else {}
+            detailed_info = detailed_info if isinstance(detailed_info, dict) else {}
+            if not isinstance(detailed_info.get("invData"), dict):
+                detailed_info["invData"] = {}
+            if not isinstance(detailed_info.get("invInfo"), dict):
+                detailed_info["invInfo"] = {}
+
             # Perform real-time derived calculations
             now = datetime.datetime.now()
-            
+            sf = self._safe_float
+
             # 1. Currents & Apparent Power
-            vpv1 = float(device_info.get("vpv1") or 0.0)
-            ppv1 = float(device_info.get("ppv1") or 0.0)
+            vpv1 = sf(device_info.get("vpv1"))
+            ppv1 = sf(device_info.get("ppv1"))
             pv1_current = round(ppv1 / vpv1, 2) if vpv1 > 10.0 else 0.0
 
-            vpv2 = float(device_info.get("vpv2") or 0.0)
-            ppv2 = float(device_info.get("ppv2") or 0.0)
+            vpv2 = sf(device_info.get("vpv2"))
+            ppv2 = sf(device_info.get("ppv2"))
             pv2_current = round(ppv2 / vpv2, 2) if vpv2 > 10.0 else 0.0
 
-            vac1 = float(device_info.get("vac1") or 0.0)
-            p_grid = abs(float(device_info.get("pactogridtotal") or 0.0))
+            vac1 = sf(device_info.get("vac1"))
+            p_grid = abs(sf(device_info.get("pactogridtotal")))
             grid_current = round(p_grid / vac1, 2) if vac1 > 50.0 else 0.0
 
-            eps_power = float(device_info.get("epsPower") or 0.0)
+            eps_power = sf(device_info.get("epsPower"))
             v_eps = vac1 if vac1 > 50.0 else 230.0
             eps_current = round(eps_power / v_eps, 2)
             eps_apparent_power = round(eps_power * 1.05, 1)
 
             # 2. Moving Averages
-            pv_total = float(device_info.get("pvPower") or device_info.get("ppvAll") or 0.0)
-            pcharge = float(device_info.get("pcharge") or 0.0)
-            pdischarge = float(device_info.get("pdischarge") or 0.0)
+            pv_total = sf(device_info.get("pvPower") or device_info.get("ppvAll"))
+            pcharge = sf(device_info.get("pcharge"))
+            pdischarge = sf(device_info.get("pdischarge"))
             net_battery_power = pcharge - pdischarge
-            load_power = float(device_info.get("loadPower") or device_info.get("plocalLoadtotal") or 0.0)
-            grid_signed = float(device_info.get("pactogridtotal") or 0.0)
+            load_power = sf(device_info.get("loadPower") or device_info.get("plocalLoadtotal"))
+            grid_signed = sf(device_info.get("pactogridtotal"))
 
             self.pv_history.append(pv_total)
             self.battery_history.append(net_battery_power)
@@ -127,7 +148,7 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
             avg_load = round(sum(self.load_history) / len(self.load_history), 1) if self.load_history else load_power
 
             # 3. SOC Speed & Power Speed
-            soc = float(device_info.get("soc") or 0.0)
+            soc = sf(device_info.get("soc"))
             if self.last_soc is not None and self.last_soc_time is not None:
                 dt_h = (now - self.last_soc_time).total_seconds() / 3600.0
                 if dt_h >= (10.0 / 3600.0):  # update if >= 10s elapsed
@@ -143,9 +164,9 @@ class AohaiDataUpdateCoordinator(DataUpdateCoordinator):
                 self.last_battery_power = net_battery_power
 
             # 4. Battery Charge ETA
-            inv_data = detailed_info.get("invData", {})
-            capacity_ah = float(inv_data.get("bmSGaugeFCC") or 100.0)
-            vbat = float(device_info.get("vbat") or inv_data.get("vbat") or 51.2)
+            inv_data = detailed_info["invData"]
+            capacity_ah = sf(inv_data.get("bmSGaugeFCC"), 100.0) or 100.0
+            vbat = sf(device_info.get("vbat") or inv_data.get("vbat"), 51.2)
             if vbat < 30.0:
                 vbat = 51.2
 

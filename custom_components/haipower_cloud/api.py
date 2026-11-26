@@ -41,9 +41,13 @@ class AohaiApiClient:
         self.token_expiry = 0
         self._auth_failed = False
 
+    def close(self):
+        """Close the underlying HTTP session."""
+        self.session.close()
+
     def login(self):
         """Authenticate with the Aohai platform using automatic captcha resolution."""
-        _LOGGER.debug("Attempting login for user %s", self.username)
+        _LOGGER.debug("Attempting login to HaiPower Cloud platform")
         self._auth_failed = False
         try:
             # 1. Request verification image & cookie
@@ -90,7 +94,7 @@ class AohaiApiClient:
             # Token is valid for 6 hours; schedule refresh after 5 hours
             self.token_expiry = time.time() + (5 * 3600)
             self._auth_failed = False
-            _LOGGER.info("Successfully logged into Aohai HaiPower (User ID: %s)", self.user_id)
+            _LOGGER.info("Successfully logged into HaiPower Cloud")
             return True
         except (requests.RequestException, ValueError) as err:
             raise AohaiApiError(f"Network error during login: {err}") from err
@@ -130,20 +134,23 @@ class AohaiApiClient:
         """Fetch list of associated devices."""
         url = f"{BASE_URL}/view/device/list?id=0&offset=0&pageNum=1&pageSize=20&type=0"
         data = self._request_json("GET", url, "Failed to fetch devices")
-        return data.get("data", {}).get("rows", [])
+        payload = data.get("data") if isinstance(data, dict) else None
+        rows = payload.get("rows") if isinstance(payload, dict) else None
+        return rows if isinstance(rows, list) else []
 
     def get_device_info(self, dsn):
         """Fetch real-time telemetry and state for a device (/view/data/deviceInfo)."""
         url = f"{BASE_URL}/view/data/deviceInfo?dsn={dsn}"
         data = self._request_json("GET", url, f"Failed to fetch device info for {dsn}")
-        return data.get("data", {})
+        payload = data.get("data") if isinstance(data, dict) else None
+        return payload if isinstance(payload, dict) else {}
 
     def get_detailed_info(self, dsn):
         """Fetch detailed hardware and battery information (/view/device/info?sn=...)."""
         url = f"{BASE_URL}/view/device/info?sn={dsn}"
         try:
             data = self._request_json("GET", url, f"Failed to fetch detailed info for {dsn}")
-            if data.get("code") == 200 and isinstance(data.get("data"), dict):
+            if isinstance(data, dict) and data.get("code") == 200 and isinstance(data.get("data"), dict):
                 return data["data"]
             return {}
         except AohaiAuthError:
@@ -156,7 +163,8 @@ class AohaiApiClient:
         """Fetch settings and configuration parameters for a device."""
         url = f"{BASE_URL}/view/device/paramsInfo?dsn={dsn}"
         data = self._request_json("GET", url, f"Failed to fetch params info for {dsn}")
-        return data.get("data", {})
+        payload = data.get("data") if isinstance(data, dict) else None
+        return payload if isinstance(payload, dict) else {}
 
     def set_parameter(self, csn, dsn, addr, key_value_list):
         """Send setting commands to the inverter.
