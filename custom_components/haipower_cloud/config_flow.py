@@ -53,6 +53,8 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except Exception as ex:  # noqa: BLE001
             _LOGGER.exception("Unexpected error during login: %s", ex)
             return None, "unknown"
+        finally:
+            await self.hass.async_add_executor_job(client.close)
         return client, None
 
     async def async_step_user(self, user_input=None):
@@ -95,7 +97,7 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if selected_dev:
                 csn = selected_dev.get("csn", "")
                 addr = selected_dev.get("addr", 1)
-                model_name = selected_dev.get("typeName") or selected_dev.get("deviceType2") or "SD-PRO-EU 6.5K"
+                model_name = selected_dev.get("typeName") or selected_dev.get("deviceType2") or "Unknown"
 
                 await self.async_set_unique_id(selected_dsn)
                 self._abort_if_unique_id_configured()
@@ -115,13 +117,16 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     },
                 )
 
+            else:
+                errors["base"] = "unknown"
+
         device_options = {
             d.get("dsn"): f"{d.get('typeName', 'Inverter')} (DSN: {d.get('dsn')}, Wi-Fi: {d.get('csn', 'None')})"
             for d in self._devices
         }
 
         default_dsn = self._devices[0].get("dsn") if self._devices else ""
-        default_model = self._devices[0].get("typeName", "Sandisolar SD-PRO-EU 6.5K") if self._devices else "Sandisolar"
+        default_model = (self._devices[0].get("typeName") or "Inverter") if self._devices else "Inverter"
         default_title = f"{default_model} ({default_dsn})" if default_dsn else "HaiPower Cloud Inverter"
 
         schema = vol.Schema({
@@ -157,10 +162,18 @@ class AohaiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             new_username = user_input.get(CONF_USERNAME, current_username)
             new_password = user_input[CONF_PASSWORD]
 
-            _, error = await self._async_authenticate(new_username, new_password)
+            _, error = await self._async_authenticate(
+                new_username, new_password, fetch_devices=True
+            )
             if error:
                 errors["base"] = error
             else:
+                expected_dsn = reauth_entry.data.get(CONF_DSN)
+                if expected_dsn and not any(
+                    d.get("dsn") == expected_dsn for d in self._devices
+                ):
+                    return self.async_abort(reason="wrong_account")
+
                 updates = {
                     CONF_USERNAME: new_username,
                     CONF_PASSWORD: new_password,

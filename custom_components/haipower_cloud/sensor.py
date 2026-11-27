@@ -34,6 +34,8 @@ from .const import (
     CONF_ENTITY_MODE,
     PROFILE_AUTO,
     PROFILE_AO_GSA_PRO,
+    PROFILE_HTA_3P_HV,
+    PROFILE_FSF_COMPACT,
     PROFILE_BASIC,
     PROFILE_FULL,
     get_effective_profile,
@@ -202,7 +204,7 @@ SENSOR_TYPES: tuple[AohaiSensorEntityDescription, ...] = (
         key="device_model",
         name="Device Model",
         icon="mdi:solar-power",
-        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("module") or "SD-PRO-EU 6.5K",
+        value_fn=lambda data: data.get("details", {}).get("invInfo", {}).get("module") or "Unknown",
         is_basic=False,
     ),
     AohaiSensorEntityDescription(
@@ -916,10 +918,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     if effective_profile == PROFILE_BASIC:
         descriptions = [d for d in SENSOR_TYPES if d.is_basic]
         _LOGGER.info("Setting up %d BASIC sensors for %s", len(descriptions), coordinator.dsn)
-    elif effective_profile == PROFILE_AO_GSA_PRO:
-        # Exclude CT clamp ratio status since AO-6KSL-G3 uses Smart Meter
+    elif effective_profile in (PROFILE_AO_GSA_PRO, PROFILE_HTA_3P_HV):
+        # Exclude CT clamp ratio status since these families use an RS485 Smart Meter
         descriptions = [d for d in SENSOR_TYPES if d.key != "ct_ratio_status"]
-        _LOGGER.info("Setting up %d sensors for %s (AO/GSA-PRO profile, Smart Meter)", len(descriptions), coordinator.dsn)
+        _LOGGER.info("Setting up %d sensors for %s (%s profile, Smart Meter)", len(descriptions), coordinator.dsn, effective_profile)
+    elif effective_profile == PROFILE_FSF_COMPACT:
+        fsf_excluded = {
+            "ct_mode_status",
+            "ct_ratio_status",
+            "extra_ac_power_to_grid",
+            "generator_active_power",
+            "generator_phase_r_power",
+            "pv2_voltage",
+            "pv2_power",
+            "pv2_current",
+            "afci_value",
+        }
+        descriptions = [d for d in SENSOR_TYPES if d.key not in fsf_excluded]
+        _LOGGER.info("Setting up %d sensors for %s (FSF Compact profile)", len(descriptions), coordinator.dsn)
     else:
         descriptions = SENSOR_TYPES
         _LOGGER.info("Setting up %d sensors for %s (profile: %s)", len(descriptions), coordinator.dsn, effective_profile)

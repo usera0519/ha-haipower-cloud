@@ -178,36 +178,40 @@ Based on the 18 official technical manuals located in the `manuals/` directory, 
 * **Description:** Forces zero-current export buffer to avoid accidental reverse feed into high-sensitivity meters.
 
 #### `VFRT Enable` (`vfrt_enable`)
-* **Cloud Parameter:** `vfrtEnable`
+* **Cloud Parameter:** `vfrtEn`
 * **Description:** Voltage and Frequency Ride-Through control for European grid code compliance.
 
 #### `Generator Dry Contact` (`generator_dry_contact`)
-* **Cloud Parameter:** `generatorDryContact`
+* **Cloud Parameter:** `dryControl`
 * **Description:** Enables relay dry contact control on the motherboard to automatically crank or signal an external backup fuel generator when battery voltage drops below `batNeedChrVolt`.
 
 #### `AC Grid Charging` (`ac_charge_enable_switch`)
-* **Cloud Parameter:** `acChrEnable`
+* **Cloud Parameter:** `acchargeEn` / `ubAcChargeEnable`
 * **Description:** Allows or forbids the internal battery charger from drawing power from the utility AC grid.
 
 #### `EPS Output` (`eps_enable_switch`)
-* **Cloud Parameter:** `epsEnable`
+* **Cloud Parameter:** `epSEn`
 * **Description:** Enables off-grid Emergency Power Supply (EPS) backup output when the utility grid fails.
 
 #### `Bypass Mode` (`bypass_enable_switch`)
-* **Cloud Parameter:** `bypassEnable`
+* **Cloud Parameter:** `bypassEn`
 * **Description:** Enables automatic internal static bypass routing AC grid power directly to loads.
 
 #### `Generator Charging` (`gen_charge_enable_switch`)
-* **Cloud Parameter:** `genChrEnable`
+* **Cloud Parameter:** `genChargeEn`
 * **Description:** Allows the inverter to charge the battery bank using power delivered to the generator input port.
 
 #### `Battery Equalization` (`equalization_switch`)
-* **Cloud Parameter:** `batteryEqualization`
+* **Cloud Parameter:** `equalization`
 * **Description:** Activates periodic high-voltage equalization cycle for lead-acid battery banks to prevent sulfation.
 
 #### `Force Full Charge` (`force_full_charge_switch`)
-* **Cloud Parameter:** `forceFullCharge`
+* **Cloud Parameter:** `ubForceChargeEnable` / `forceFullCharge`
 * **Description:** Overrides current priority schedule to immediately charge the battery bank to 100% SOC.
+
+#### `Bluetooth Broadcast` (`bluetooth_switch`)
+* **Cloud Parameter:** `ubBluetoothEn`
+* **Description:** Enables or disables the inverter's local Bluetooth radio broadcast.
 
 ---
 
@@ -231,21 +235,21 @@ Based on the 18 official technical manuals located in the `manuals/` directory, 
 ### 3.3 Select Platform (Operational Modes)
 
 #### `Power Supply Priority` (`power_priority`)
-* **Cloud Parameter:** `powerPriority`
+* **Cloud Parameter:** `periodpower`
 * **Options:**
   1. `SOL (Solar/PV Priority)`: Solar energy powers loads first. If solar is insufficient, battery supplies remaining demand. Utility grid is only used when battery reaches low voltage cutoff.
   2. `UTI (Utility Priority)`: Utility grid powers loads as default. Solar and battery power are reserved for battery charging and power outages.
   3. `SBU (Solar-Battery-Utility Priority)`: Solar energy powers loads first. Battery provides power whenever solar is unavailable. Inverter switches to utility grid only when battery drops below `bat2acVolt` / `gridFirstStopSOC`.
 
 #### `Charging Priority` (`charging_priority`)
-* **Cloud Parameter:** `chargingPriority`
+* **Cloud Parameter:** `periodcharge`
 * **Options:**
   1. `CSO (Solar Priority)`: Solar energy charges battery first. Utility grid only charges battery when solar is completely unavailable.
   2. `SNU (Solar + Utility Hybrid)`: Solar and AC utility grid charge the battery concurrently up to the configured current limit.
   3. `OSO (Only Solar)`: Utility grid is completely forbidden from charging the battery, regardless of battery voltage.
 
 #### `Grid Input Voltage Range` (`ac_input_type`)
-* **Cloud Parameter:** `acInputMode`
+* **Cloud Parameter:** `acInputType`
 * **Options:**
   1. `APL (Appliance Mode)`: Wide input voltage window (90V–280V AC), ideal for unstable rural grids and generators.
   2. `UPS (UPS Mode)`: Narrow input voltage window (170V–280V AC) with ultra-fast transfer time (<10ms) to protect sensitive computer equipment.

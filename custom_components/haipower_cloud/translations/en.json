@@ -36,7 +36,8 @@
     },
     "abort": {
       "already_configured": "This inverter is already configured in Home Assistant.",
-      "reauth_successful": "Re-authentication was successful."
+      "reauth_successful": "Re-authentication was successful.",
+      "wrong_account": "This HaiPower Cloud account does not contain the configured inverter. Please reauthenticate with the original account."
     }
   },
   "options": {

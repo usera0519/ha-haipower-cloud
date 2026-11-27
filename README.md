@@ -5,7 +5,7 @@
 # HaiPower Cloud - Sandisolar / Aohai Solar Inverter Integration for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/default)
-[![Home Assistant](https://img.shields.io/badge/Home--Assistant-2024.1+-blue.svg)](https://www.home-assistant.io/)
+[![Home Assistant](https://img.shields.io/badge/Home--Assistant-2024.11+-blue.svg)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A comprehensive Home Assistant custom integration for **Sandisolar** and compatible **Aohai HiPower / HaiPower** solar hybrid inverters connected to the `eu.aohaidigitalpower.com` cloud platform.
@@ -84,8 +84,9 @@ Based on an engineering analysis of 18 technical manuals, the HaiPower Cloud pla
 * **100% Cloud-Native:** Works via Wi-Fi logger directly through `eu.aohaidigitalpower.com`. No Modbus RS485 converter or custom hardware required.
 * **Automatic Captcha Resolution:** Authentication verification tokens are decoded automatically in the background—no manual captcha input.
 * **Model Profile & Entity Exposure Modes:**
-  * **Auto-Detect Model (Recommended):** Inspects the inverter hardware type string reported by the cloud (e.g. `AO-6KSL-G3`, `SD-PRO-EU 6.5K`, `HSC-6K1P-BL`) and automatically selects the optimal profile.
+  * **Auto-Detect Model (Recommended):** Inspects the inverter hardware type string reported by the cloud (e.g. `AO-6KSL-G3`, `SD-PRO-EU 6.5K`, `HSC-6K1P-BL`) and automatically selects the optimal profile. Unrecognized models safely fall back to **Read-Only Mode** (sensors only, no configuration writes) and log a warning so the model can be reported.
   * **Manual Group Selection:** Manually pick any of the 6 functional groups.
+  * **Read-Only Mode:** Exposes read-only sensors only (no `number`, `select`, `switch`, or `button` entities).
   * **Full Mode:** Exposes all 87 sensors, 15 switches, 25 numbers, 4 selects, and 3 buttons without any model-based filtering.
   * **Basic Mode:** Lightweight profile exposing only essential Home Assistant Energy Dashboard sensors, electrical measurements, status/fault alarms, and the `Inverter Operation` switch.
 * **CT Calibration & Detection Buttons:** Directly trigger hardware CT calibration (`register 96=1`) and polarity detection (`register 96=2`) from Home Assistant on inverters equipped with CT clamp inputs.
@@ -127,7 +128,7 @@ Based on an engineering analysis of 18 technical manuals, the HaiPower Cloud pla
 4. In the setup dialog:
    * Select your inverter (DSN).
    * Customize the device name.
-   * Choose your **Model Profile / Entity Mode** (`Auto-Detect Model`, specific inverter family, `Full Mode`, or `Basic Mode`).
+   * Choose your **Model Profile / Entity Mode** (`Auto-Detect Model`, specific inverter family, `Read-Only Mode`, `Full Mode`, or `Basic Mode`).
    * Set your preferred cloud polling interval (10–300s, default: 30s).
 5. To change settings later (switch profile or adjust polling interval), click **Configure** on the HaiPower Cloud integration card.
 

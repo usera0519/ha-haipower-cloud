@@ -1,4 +1,8 @@
 """Constants for the HaiPower Cloud / Sandisolar integration."""
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+_LOGGED_UNKNOWN_MODELS: set[str] = set()
 
 DOMAIN = "haipower_cloud"
 
@@ -20,6 +24,7 @@ PROFILE_FSC_HSA_1P = "fsc_hsa_1p"
 PROFILE_HUA_3P_LV = "hua_3p_lv"
 PROFILE_HTA_3P_HV = "hta_3p_hv"
 PROFILE_FSF_COMPACT = "fsf_compact"
+PROFILE_READ_ONLY = "read_only"
 PROFILE_FULL = "full"
 PROFILE_BASIC = "basic"
 
@@ -34,6 +39,7 @@ MODEL_PROFILE_CHOICES = {
     PROFILE_HUA_3P_LV: "HUA Series (3-Phase 400V, 48V LV Battery)",
     PROFILE_HTA_3P_HV: "HTA / AH-TH Series (3-Phase 400V, High-Voltage 150-800V Battery)",
     PROFILE_FSF_COMPACT: "FSF Series (1-Phase 230V, 12V/24V Compact Balcony/RV)",
+    PROFILE_READ_ONLY: "Read-Only Mode (Sensors only, no configuration writes)",
     PROFILE_FULL: "Full Mode (Expose all entities without model filtering)",
     PROFILE_BASIC: "Basic Mode (Essential Energy Dashboard + Inverter On/Off)",
 }
@@ -44,9 +50,10 @@ def get_effective_profile(configured_profile: str, model_str: str) -> str:
         return configured_profile
 
     # Auto-detection from hardware string (e.g. 'AO-6KSL-G3', 'SD-PRO-EU 6.5K', 'HSC-6K1P-BL')
-    m = (model_str or "").upper()
-    # Check Three-Phase High-Voltage first (HTA, KTH, KTHD, BH)
-    if any(k in m for k in ["HTA-", "KTH", "KTHD", "BH"]):
+    raw_model = model_str or ""
+    m = raw_model.upper()
+    # Check Three-Phase High-Voltage first (HTA, KTH, KTHD, -BH)
+    if any(k in m for k in ["HTA-", "KTH", "KTHD", "-BH"]):
         return PROFILE_HTA_3P_HV
     elif any(k in m for k in ["HUA-"]):
         return PROFILE_HUA_3P_LV
@@ -59,8 +66,16 @@ def get_effective_profile(configured_profile: str, model_str: str) -> str:
     elif any(k in m for k in ["AO-", "GSA-", "SD-PRO", "SD-HYM"]):
         return PROFILE_AO_GSA_PRO
 
-    # Default fallback for Sandisolar / HaiPower
-    return PROFILE_AO_GSA_PRO
+    # Safe read-only fallback for unrecognized models so we never write mismatched voltage/register settings
+    if raw_model not in _LOGGED_UNKNOWN_MODELS:
+        _LOGGED_UNKNOWN_MODELS.add(raw_model)
+        _LOGGER.warning(
+            "Unrecognized HaiPower inverter model '%s'; falling back to read-only mode "
+            "(sensors only, no configuration writes). Please report this model at "
+            "https://github.com/usera0519/ha-haipower-cloud/issues",
+            raw_model or "Unknown",
+        )
+    return PROFILE_READ_ONLY
 
 
 # Power Supply Priority: SOL (Solar/PV Priority), UTI (Utility Priority), SBU (Solar-Battery-Utility Priority)

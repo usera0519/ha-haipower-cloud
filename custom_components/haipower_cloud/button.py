@@ -14,12 +14,9 @@ from .const import (
     DOMAIN,
     CONF_ENTITY_MODE,
     PROFILE_AUTO,
-    PROFILE_AO_GSA_PRO,
     PROFILE_HSC_AH_1P,
     PROFILE_FSC_HSA_1P,
-    PROFILE_HUA_3P_LV,
-    PROFILE_HTA_3P_HV,
-    PROFILE_FSF_COMPACT,
+    PROFILE_READ_ONLY,
     PROFILE_FULL,
     get_effective_profile,
 )
@@ -32,6 +29,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     coordinator: AohaiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     cfg_profile = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
     effective_profile = get_effective_profile(cfg_profile, coordinator.model_name)
+
+    if effective_profile == PROFILE_READ_ONLY:
+        _LOGGER.info("Skipping button entities for %s in read-only mode", coordinator.dsn)
+        return
 
     buttons = [AohaiRefreshButton(coordinator)]
 

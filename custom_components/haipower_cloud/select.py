@@ -11,6 +11,11 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .api import AohaiApiError
 from .const import (
     DOMAIN,
+    CONF_ENTITY_MODE,
+    PROFILE_AUTO,
+    PROFILE_FSF_COMPACT,
+    PROFILE_READ_ONLY,
+    get_effective_profile,
     POWER_PRIORITY_OPTIONS,
     POWER_PRIORITY_TO_VAL,
     VAL_TO_POWER_PRIORITY,
@@ -32,12 +37,21 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up HaiPower selects based on a config entry."""
     coordinator: AohaiDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([
+    cfg_profile = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
+    effective_profile = get_effective_profile(cfg_profile, coordinator.model_name)
+
+    if effective_profile == PROFILE_READ_ONLY:
+        _LOGGER.info("Skipping select write entities for %s in read-only mode", coordinator.dsn)
+        return
+
+    selects: list[SelectEntity] = [
         AohaiPowerPrioritySelect(coordinator),
         AohaiChargingPrioritySelect(coordinator),
         AohaiAcInputModeSelect(coordinator),
-        AohaiGenPortModeSelect(coordinator),
-    ])
+    ]
+    if effective_profile != PROFILE_FSF_COMPACT:
+        selects.append(AohaiGenPortModeSelect(coordinator))
+    async_add_entities(selects)
 
 
 class AohaiBaseSelect(CoordinatorEntity[AohaiDataUpdateCoordinator], SelectEntity):
@@ -55,8 +69,11 @@ class AohaiBaseSelect(CoordinatorEntity[AohaiDataUpdateCoordinator], SelectEntit
             serial_number=self.coordinator.dsn,
         )
 
-    async def _async_set_parameter(self, param: str, val: int, option: str) -> None:
-        """Send a select parameter update wrapped in HomeAssistantError on failure."""
+    async def _async_set_mapped_option(self, param: str, mapping: dict[str, int], option: str) -> None:
+        """Validate option against mapping and send parameter update."""
+        val = mapping.get(option)
+        if val is None:
+            raise HomeAssistantError(f"Unsupported option '{option}' for {self._attr_name}")
         _LOGGER.info("Setting %s to %s (val=%s)", self._attr_name, option, val)
         try:
             await self.coordinator.async_set_parameter([f"{param}={val}"])
@@ -85,8 +102,7 @@ class AohaiPowerPrioritySelect(AohaiBaseSelect):
         return VAL_TO_POWER_PRIORITY.get(val)
 
     async def async_select_option(self, option: str) -> None:
-        val = POWER_PRIORITY_TO_VAL[option]
-        await self._async_set_parameter("periodpower", val, option)
+        await self._async_set_mapped_option("periodpower", POWER_PRIORITY_TO_VAL, option)
 
 
 class AohaiChargingPrioritySelect(AohaiBaseSelect):
@@ -108,8 +124,7 @@ class AohaiChargingPrioritySelect(AohaiBaseSelect):
         return VAL_TO_CHARGING_PRIORITY.get(val)
 
     async def async_select_option(self, option: str) -> None:
-        val = CHARGING_PRIORITY_TO_VAL[option]
-        await self._async_set_parameter("periodcharge", val, option)
+        await self._async_set_mapped_option("periodcharge", CHARGING_PRIORITY_TO_VAL, option)
 
 
 class AohaiAcInputModeSelect(AohaiBaseSelect):
@@ -131,8 +146,7 @@ class AohaiAcInputModeSelect(AohaiBaseSelect):
         return VAL_TO_AC_INPUT.get(val)
 
     async def async_select_option(self, option: str) -> None:
-        val = AC_INPUT_TO_VAL[option]
-        await self._async_set_parameter("acInputType", val, option)
+        await self._async_set_mapped_option("acInputType", AC_INPUT_TO_VAL, option)
 
 
 class AohaiGenPortModeSelect(AohaiBaseSelect):
@@ -156,5 +170,4 @@ class AohaiGenPortModeSelect(AohaiBaseSelect):
         return VAL_TO_GEN_MODE.get(val)
 
     async def async_select_option(self, option: str) -> None:
-        val = GEN_MODE_TO_VAL[option]
-        await self._async_set_parameter("genMode", val, option)
+        await self._async_set_mapped_option("genMode", GEN_MODE_TO_VAL, option)

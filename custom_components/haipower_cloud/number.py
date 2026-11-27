@@ -23,6 +23,7 @@ from .const import (
     PROFILE_AO_GSA_PRO,
     PROFILE_HTA_3P_HV,
     PROFILE_FSF_COMPACT,
+    PROFILE_READ_ONLY,
     PROFILE_FULL,
     get_effective_profile,
 )
@@ -322,6 +323,7 @@ NUMBER_CONFIGS = [
         "unit": UnitOfPower.WATT,
         "icon": "mdi:tune",
         "scale": 1.0,
+        "no_compact": True,
     },
     {
         "key": "active_power_rate",
@@ -342,6 +344,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     cfg_profile = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
     effective_profile = get_effective_profile(cfg_profile, coordinator.model_name)
 
+    if effective_profile == PROFILE_READ_ONLY:
+        _LOGGER.info("Skipping number write entities for %s in read-only mode", coordinator.dsn)
+        return
+
     filtered_configs = []
     for conf in NUMBER_CONFIGS:
         # In Full mode, include everything
@@ -349,8 +355,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             filtered_configs.append(conf)
             continue
 
-        # In AO-6KSL-G3 / GSA-PRO: has Smart Meter instead of physical CT clamp ratio
-        if effective_profile == PROFILE_AO_GSA_PRO and conf.get("ct_clamp_only"):
+        # In AO-6KSL-G3 / GSA-PRO and HTA 3P HV: Smart Meter used instead of physical CT clamp ratio
+        if effective_profile in (PROFILE_AO_GSA_PRO, PROFILE_HTA_3P_HV) and conf.get("ct_clamp_only"):
             continue
 
         # In High Voltage 3-Phase: exclude 48V LV specific thresholds

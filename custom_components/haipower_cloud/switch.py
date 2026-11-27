@@ -16,6 +16,7 @@ from .const import (
     PROFILE_AUTO,
     PROFILE_BASIC,
     PROFILE_FSF_COMPACT,
+    PROFILE_READ_ONLY,
     get_effective_profile,
 )
 from .coordinator import AohaiDataUpdateCoordinator
@@ -43,12 +44,14 @@ SWITCH_CONFIGS = [
         "name": "Anti-Backflow (Zero Export)",
         "param": "localAntiBackflowEnable",
         "icon": "mdi:transmission-tower-export",
+        "no_compact": True,
     },
     {
         "key": "ct_enable",
         "name": "External CT Enable",
         "param": "ctMode",
         "icon": "mdi:current-ac",
+        "no_compact": True,
     },
     {
         "key": "overload_to_bypass",
@@ -61,12 +64,14 @@ SWITCH_CONFIGS = [
         "name": "Zero Power Output",
         "param": "zeroCurrentEnable",
         "icon": "mdi:cancel",
+        "no_compact": True,
     },
     {
         "key": "vfrt_enable",
         "name": "VFRT Enable",
         "param": "vfrtEn",
         "icon": "mdi:sine-wave",
+        "no_compact": True,
     },
     {
         "key": "generator_dry_contact",
@@ -128,6 +133,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     cfg_profile = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
     effective_profile = get_effective_profile(cfg_profile, coordinator.model_name)
 
+    if effective_profile == PROFILE_READ_ONLY:
+        _LOGGER.info("Skipping switch write entities for %s in read-only mode", coordinator.dsn)
+        return
     if effective_profile == PROFILE_BASIC:
         configs = [c for c in SWITCH_CONFIGS if c.get("is_basic", False)]
         _LOGGER.info("Setting up %d BASIC switches for %s", len(configs), coordinator.dsn)

@@ -17,9 +17,8 @@ from .const import (
     CONF_ENTITY_MODE,
     PROFILE_AUTO,
     PROFILE_BASIC,
-    PROFILE_FULL,
-    ENTITY_MODE_FULL,
-    ENTITY_MODE_BASIC,
+    PROFILE_READ_ONLY,
+    get_effective_profile,
 )
 from .api import AohaiApiClient, AohaiApiError, AohaiAuthError
 from .coordinator import AohaiDataUpdateCoordinator
@@ -43,7 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     dsn = entry.data[CONF_DSN]
     csn = entry.data.get(CONF_CSN, "")
     device_name = entry.data.get(CONF_DEVICE_NAME, entry.title or f"Inverter {dsn}")
-    model_name = entry.data.get("model_name", "SD-PRO-EU 6.5K / AO-6KSL-G3")
+    model_name = entry.data.get("model_name", "Unknown")
     addr = entry.data.get("addr", 1)
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
     entity_mode = entry.options.get(CONF_ENTITY_MODE, entry.data.get(CONF_ENTITY_MODE, PROFILE_AUTO))
@@ -54,8 +53,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await hass.async_add_executor_job(client.login)
     except AohaiAuthError as err:
+        await hass.async_add_executor_job(client.close)
         raise ConfigEntryAuthFailed(f"Invalid HaiPower Cloud credentials: {err}") from err
     except AohaiApiError as err:
+        await hass.async_add_executor_job(client.close)
         raise ConfigEntryNotReady(f"Unable to connect to HaiPower Cloud: {err}") from err
 
     coordinator = AohaiDataUpdateCoordinator(
@@ -74,13 +75,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    # Forward setups based on selected entity mode
-    if entity_mode == PROFILE_BASIC:
+    # Forward setups based on selected entity mode / resolved model profile
+    effective_profile = get_effective_profile(entity_mode, model_name)
+    if effective_profile == PROFILE_BASIC:
         active_platforms = [Platform.SENSOR, Platform.SWITCH]
         _LOGGER.info("HaiPower Cloud loaded in BASIC mode (Basic sensors and Inverter Operation switch)")
+    elif effective_profile == PROFILE_READ_ONLY:
+        active_platforms = [Platform.SENSOR]
+        _LOGGER.info("HaiPower Cloud loaded in READ-ONLY mode (sensors only) for model '%s'", model_name)
     else:
         active_platforms = PLATFORMS
-        _LOGGER.info("HaiPower Cloud loaded with profile '%s' for model '%s'", entity_mode, model_name)
+        _LOGGER.info("HaiPower Cloud loaded with profile '%s' for model '%s'", effective_profile, model_name)
 
     coordinator.platforms = active_platforms
     await hass.config_entries.async_forward_entry_setups(entry, active_platforms)

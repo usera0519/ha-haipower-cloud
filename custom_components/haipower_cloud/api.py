@@ -79,6 +79,8 @@ class AohaiApiClient:
             login_res = self.session.post(f"{BASE_URL}/auth/doLogin", data=login_data, timeout=15)
             login_res.raise_for_status()
             resp_json = login_res.json()
+            if not isinstance(resp_json, dict):
+                raise AohaiApiError("Unexpected non-object login response from server")
 
             if resp_json.get("code") != 200:
                 self.token = None
@@ -113,6 +115,8 @@ class AohaiApiClient:
             res = self.session.request(method, url, timeout=15, **kwargs)
             res.raise_for_status()
             data = res.json()
+            if not isinstance(data, dict):
+                raise AohaiApiError(f"{error_context}: unexpected non-object JSON response")
             if data.get("code") in (401, 501):
                 # Token expired on server side; attempt a single re-login
                 self.token = None
@@ -121,6 +125,8 @@ class AohaiApiClient:
                 res = self.session.request(method, url, timeout=15, **kwargs)
                 res.raise_for_status()
                 data = res.json()
+                if not isinstance(data, dict):
+                    raise AohaiApiError(f"{error_context}: unexpected non-object JSON response")
                 if data.get("code") in (401, 501):
                     self.token = None
                     self.token_expiry = 0
